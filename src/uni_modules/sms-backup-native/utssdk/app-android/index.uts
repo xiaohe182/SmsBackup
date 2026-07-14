@@ -1,5 +1,6 @@
 import { SmsBackupNative } from 'uts.sdk.modules.smsBackupNative'
 import { UTSAndroid } from 'io.dcloud.uts'
+import { Build } from 'android.os'
 
 // #ifdef APP-ANDROID
 export function initialize(): void {
@@ -34,6 +35,29 @@ export function requestPermissions(): Promise<boolean> {
   })
 }
 
+export function requestMediaPermissions(): Promise<boolean> {
+  return new Promise<boolean>((resolve, _reject) => {
+    const activity = UTSAndroid.getUniActivity()
+    if (activity == null) {
+      resolve(false)
+      return
+    }
+    const permissions = Build.VERSION.SDK_INT >= 33
+      ? ['android.permission.READ_MEDIA_IMAGES']
+      : ['android.permission.READ_EXTERNAL_STORAGE']
+    if (UTSAndroid.getSystemPermissionDenied(activity, permissions).isEmpty()) {
+      resolve(true)
+      return
+    }
+    UTSAndroid.requestSystemPermission(
+      activity,
+      permissions,
+      (allRight: boolean, _granted: string[]) => resolve(allRight),
+      (_doNotAskAgain: boolean, _granted: string[]) => resolve(false)
+    )
+  })
+}
+
 export function scanExistingMessages(): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     UTSAndroid.getDispatcher('io').async((_data: any | null) => {
@@ -51,6 +75,30 @@ export function getAllMessages(password: string): Promise<string> {
     UTSAndroid.getDispatcher('io').async((_data: any | null) => {
       try {
         resolve(SmsBackupNative.getAllMessagesJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getAllMmsMessages(password: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getAllMmsMessagesJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getGalleryPhotos(password: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getGalleryPhotosJson(password))
       } catch (error) {
         reject(error)
       }

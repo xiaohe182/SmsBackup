@@ -37,18 +37,63 @@ export interface SmsMessage {
   simSubscriptionId: number | null;
 }
 
+export interface MmsAttachment {
+  id: string;
+  uri: string;
+  mimeType: string;
+}
+
+export interface MmsMessage {
+  sourceId: string;
+  threadId: number | null;
+  address: string;
+  body: string;
+  receivedAt: number;
+  sentAt: number | null;
+  type: number;
+  direction: SmsDirection;
+  read: boolean;
+  seen: boolean;
+  attachments: MmsAttachment[];
+}
+
+export interface GalleryPhoto {
+  id: string;
+  uri: string;
+  albumId: string;
+  albumName: string;
+  displayName: string;
+  takenAt: number;
+  mimeType: string;
+}
+
 export interface SmsMessageListResult {
   authorized: boolean;
   permissionGranted: boolean;
   messages: SmsMessage[];
 }
 
+export interface MmsMessageListResult {
+  authorized: boolean;
+  permissionGranted: boolean;
+  messages: MmsMessage[];
+}
+
+export interface GalleryPhotoListResult {
+  authorized: boolean;
+  permissionGranted: boolean;
+  photos: GalleryPhoto[];
+}
+
 export interface SmsBackupService {
   initialize(): Promise<void>;
   getStatus(): Promise<SmsBackupStatus>;
   requestPermissions(): Promise<boolean>;
+  requestMediaPermissions(): Promise<boolean>;
   scanExistingMessages(): Promise<number>;
   listAllMessages(password: string): Promise<SmsMessageListResult>;
+  listMmsMessages(password: string): Promise<MmsMessageListResult>;
+  listGalleryPhotos(password: string): Promise<GalleryPhotoListResult>;
   syncNow(): Promise<void>;
   testConnection(serverUrl: string): Promise<boolean>;
   saveSettings(settings: AppSettings): Promise<void>;
@@ -60,8 +105,11 @@ export interface NativeSmsModule {
   initialize(): void;
   getPermissionState(): string;
   requestPermissions(): Promise<boolean>;
+  requestMediaPermissions(): Promise<boolean>;
   scanExistingMessages(): Promise<number>;
   getAllMessages(password: string): Promise<string>;
+  getAllMmsMessages(password: string): Promise<string>;
+  getGalleryPhotos(password: string): Promise<string>;
   getBackupStatus(): string;
   saveNativeSettings(settingsJson: string): void;
   saveNativeRules(rulesJson: string): void;
@@ -85,11 +133,22 @@ export function createUnavailableSmsBackupService(): SmsBackupService {
     initialize: async () => undefined,
     getStatus: async () => ({ ...UNAVAILABLE_STATUS }),
     requestPermissions: async () => false,
+    requestMediaPermissions: async () => false,
     scanExistingMessages: async () => 0,
     listAllMessages: async () => ({
       authorized: false,
       permissionGranted: false,
       messages: [],
+    }),
+    listMmsMessages: async () => ({
+      authorized: false,
+      permissionGranted: false,
+      messages: [],
+    }),
+    listGalleryPhotos: async () => ({
+      authorized: false,
+      permissionGranted: false,
+      photos: [],
     }),
     syncNow: async () => undefined,
     testConnection: async () => false,
@@ -100,12 +159,42 @@ export function createUnavailableSmsBackupService(): SmsBackupService {
 }
 
 function parseMessageList(raw: string): SmsMessageListResult {
-  const value = JSON.parse(raw) as Partial<SmsMessageListResult>;
-  return {
-    authorized: value.authorized === true,
-    permissionGranted: value.permissionGranted === true,
-    messages: Array.isArray(value.messages) ? value.messages : [],
-  };
+  try {
+    const value = JSON.parse(raw) as Partial<SmsMessageListResult>;
+    return {
+      authorized: value.authorized === true,
+      permissionGranted: value.permissionGranted === true,
+      messages: Array.isArray(value.messages) ? value.messages : [],
+    };
+  } catch {
+    return { authorized: false, permissionGranted: false, messages: [] };
+  }
+}
+
+function parseMmsMessageList(raw: string): MmsMessageListResult {
+  try {
+    const value = JSON.parse(raw) as Partial<MmsMessageListResult>;
+    return {
+      authorized: value.authorized === true,
+      permissionGranted: value.permissionGranted === true,
+      messages: Array.isArray(value.messages) ? value.messages : [],
+    };
+  } catch {
+    return { authorized: false, permissionGranted: false, messages: [] };
+  }
+}
+
+function parseGalleryPhotoList(raw: string): GalleryPhotoListResult {
+  try {
+    const value = JSON.parse(raw) as Partial<GalleryPhotoListResult>;
+    return {
+      authorized: value.authorized === true,
+      permissionGranted: value.permissionGranted === true,
+      photos: Array.isArray(value.photos) ? value.photos : [],
+    };
+  } catch {
+    return { authorized: false, permissionGranted: false, photos: [] };
+  }
 }
 
 function parseStatus(raw: string): SmsBackupStatus {
@@ -145,9 +234,14 @@ export function createAndroidSmsBackupService(
     initialize: async () => native.initialize(),
     getStatus: async () => parseStatus(native.getBackupStatus()),
     requestPermissions: async () => native.requestPermissions(),
+    requestMediaPermissions: async () => native.requestMediaPermissions(),
     scanExistingMessages: async () => native.scanExistingMessages(),
     listAllMessages: async (password) =>
       parseMessageList(await native.getAllMessages(password)),
+    listMmsMessages: async (password) =>
+      parseMmsMessageList(await native.getAllMmsMessages(password)),
+    listGalleryPhotos: async (password) =>
+      parseGalleryPhotoList(await native.getGalleryPhotos(password)),
     syncNow: async () => native.syncNow(),
     testConnection: async (serverUrl) => native.testConnection(serverUrl),
     saveSettings: async (settings) =>

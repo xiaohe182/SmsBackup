@@ -13,6 +13,12 @@
       }
     },
     {
+      "path": "pages/conversation/conversation",
+      "style": {
+        "navigationBarTitleText": "短信详情"
+      }
+    },
+    {
       "path": "pages/blacklist/blacklist",
       "style": {
         "navigationBarTitleText": "黑名单"

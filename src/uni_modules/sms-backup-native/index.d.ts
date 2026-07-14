@@ -1,8 +1,11 @@
 export function initialize(): void;
 export function getPermissionState(): string;
 export function requestPermissions(): Promise<boolean>;
+export function requestMediaPermissions(): Promise<boolean>;
 export function scanExistingMessages(): Promise<number>;
 export function getAllMessages(password: string): Promise<string>;
+export function getAllMmsMessages(password: string): Promise<string>;
+export function getGalleryPhotos(password: string): Promise<string>;
 export function getBackupStatus(): string;
 export function saveNativeSettings(settingsJson: string): void;
 export function saveNativeRules(rulesJson: string): void;

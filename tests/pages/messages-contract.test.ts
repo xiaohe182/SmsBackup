@@ -36,19 +36,24 @@ describe("password-protected SMS viewer page", () => {
     );
   });
 
-  it("shows full message metadata and clears sensitive state when hidden", () => {
+  it("keeps an active ten-minute session across page hiding and exposes conversation tabs", () => {
     const page = read("src/pages/messages/messages.vue");
 
     for (const value of [
-      "message.address",
-      "message.body",
-      "message.direction",
-      "message.read",
-      "message.simSubscriptionId",
+      "smsViewerSession",
+      "remainingMs",
+      "lockViewer",
+      '"conversations"',
+      '"all"',
+      '"inbox"',
+      '"sent"',
+      '"media"',
+      "openConversation",
+      "requestMediaPermissions",
     ]) {
       expect(page).toContain(value);
     }
-    expect(page).toContain("onHide(clearSensitiveState)");
-    expect(page).toContain("onUnload(clearSensitiveState)");
+    expect(page).not.toContain("onHide(clearSensitiveState)");
+    expect(page).not.toContain("onUnload(clearSensitiveState)");
   });
 });

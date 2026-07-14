@@ -35,3 +35,45 @@ export type NativeViewerResponse = {
   permissionGranted: boolean,
   messages: NativeViewerMessage[]
 }
+
+export type NativeMmsAttachment = {
+  id: string,
+  uri: string,
+  mimeType: string
+}
+
+export type NativeViewerMmsMessage = {
+  sourceId: string,
+  threadId: number | null,
+  address: string,
+  body: string,
+  receivedAt: number,
+  sentAt: number | null,
+  type: number,
+  direction: string,
+  read: boolean,
+  seen: boolean,
+  attachments: NativeMmsAttachment[]
+}
+
+export type NativeViewerMmsResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  messages: NativeViewerMmsMessage[]
+}
+
+export type NativeGalleryPhoto = {
+  id: string,
+  uri: string,
+  albumId: string,
+  albumName: string,
+  displayName: string,
+  takenAt: number,
+  mimeType: string
+}
+
+export type NativeGalleryResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  photos: NativeGalleryPhoto[]
+}

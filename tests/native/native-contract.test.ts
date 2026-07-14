@@ -11,12 +11,14 @@ function read(relativePath: string): string {
 }
 
 describe("Android native SMS plugin contract", () => {
-  it("declares only the required SMS and network permissions", () => {
+  it("declares required SMS, network, and image-reading permissions", () => {
     const manifest = read("AndroidManifest.xml");
     expect(manifest).toContain("android.permission.READ_SMS");
     expect(manifest).toContain("android.permission.RECEIVE_SMS");
     expect(manifest).toContain("android.permission.INTERNET");
     expect(manifest).toContain("android.permission.ACCESS_NETWORK_STATE");
+    expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
+    expect(manifest).toContain("android.permission.READ_EXTERNAL_STORAGE");
   });
 
   it("supports Android 8 and declares compatible AndroidX dependencies", () => {
@@ -31,8 +33,11 @@ describe("Android native SMS plugin contract", () => {
       "initialize",
       "getPermissionState",
       "requestPermissions",
+      "requestMediaPermissions",
       "scanExistingMessages",
       "getAllMessages",
+      "getAllMmsMessages",
+      "getGalleryPhotos",
       "getBackupStatus",
       "saveNativeSettings",
       "saveNativeRules",
@@ -106,5 +111,25 @@ describe("Android native SMS plugin contract", () => {
     ]) {
       expect(repository).toMatch(new RegExp(`put\\(\\s*"${field}"`));
     }
+  });
+
+  it("guards MMS and gallery queries with the viewer password", () => {
+    const native = read("SmsBackupNative.kt");
+    expect(native).toContain("fun getAllMmsMessagesJson(password: String)");
+    expect(native).toContain("fun getGalleryPhotosJson(password: String)");
+    expect(native).toContain("if (password != VIEW_PASSWORD)");
+    expect(native).toContain("repository.getAllMmsMessages()");
+    expect(native).toContain("repository.getGalleryPhotos()");
+  });
+
+  it("uses the Android MMS and media providers for attachments and albums", () => {
+    const repository = read("SmsRepository.kt");
+    const uts = read("index.uts");
+    expect(repository).toContain("Telephony.Mms.CONTENT_URI");
+    expect(repository).toContain("content://mms/part");
+    expect(repository).toContain("MediaStore.Images.Media.EXTERNAL_CONTENT_URI");
+    expect(uts).toContain("Build.VERSION.SDK_INT >= 33");
+    expect(uts).toContain("android.permission.READ_MEDIA_IMAGES");
+    expect(uts).toContain("android.permission.READ_EXTERNAL_STORAGE");
   });
 });

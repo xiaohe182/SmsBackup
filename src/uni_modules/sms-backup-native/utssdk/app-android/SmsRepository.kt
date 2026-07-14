@@ -3,6 +3,9 @@ package uts.sdk.modules.smsBackupNative
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import android.provider.Telephony
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
@@ -168,6 +171,123 @@ class SmsRepository(private val context: Context) {
         return messages
     }
 
+    fun getAllMmsMessages(): JSONArray {
+        val messages = JSONArray()
+        if (!hasReadPermission()) return messages
+
+        context.contentResolver.query(
+            Telephony.Mms.CONTENT_URI,
+            null,
+            null,
+            null,
+            "date DESC"
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndex("_id")
+            val threadIdIndex = cursor.getColumnIndex("thread_id")
+            val boxIndex = cursor.getColumnIndex("msg_box")
+            val dateIndex = cursor.getColumnIndex("date")
+            val dateSentIndex = cursor.getColumnIndex("date_sent")
+            val readIndex = cursor.getColumnIndex("read")
+            val seenIndex = cursor.getColumnIndex("seen")
+            if (idIndex < 0 || boxIndex < 0 || dateIndex < 0) return messages
+
+            while (cursor.moveToNext()) {
+                val sourceId = cursor.getString(idIndex).orEmpty()
+                if (sourceId.isBlank()) continue
+                val messageBox = cursor.getInt(boxIndex)
+                val direction = mmsDirection(messageBox)
+                val parts = getMmsParts(sourceId)
+                val receivedAt = cursor.getLong(dateIndex) * 1_000
+                val sentAt = if (
+                    dateSentIndex >= 0 &&
+                    !cursor.isNull(dateSentIndex) &&
+                    cursor.getLong(dateSentIndex) > 0
+                ) cursor.getLong(dateSentIndex) * 1_000 else null
+                val threadId = if (
+                    threadIdIndex >= 0 && !cursor.isNull(threadIdIndex)
+                ) cursor.getLong(threadIdIndex) else null
+
+                messages.put(JSONObject().apply {
+                    put("sourceId", sourceId)
+                    put("threadId", threadId ?: JSONObject.NULL)
+                    put("address", getMmsAddress(sourceId, direction))
+                    put("body", parts.body)
+                    put("receivedAt", receivedAt)
+                    put("sentAt", sentAt ?: JSONObject.NULL)
+                    put("type", messageBox)
+                    put("direction", direction)
+                    put("read", readIndex >= 0 && cursor.getInt(readIndex) == 1)
+                    put("seen", seenIndex >= 0 && cursor.getInt(seenIndex) == 1)
+                    put("attachments", parts.attachments)
+                })
+            }
+        }
+        return messages
+    }
+
+    fun getGalleryPhotos(): JSONArray {
+        val photos = JSONArray()
+        if (!hasImagePermission()) return photos
+
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_ADDED,
+            MediaStore.Images.Media.BUCKET_ID,
+            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+            MediaStore.Images.Media.MIME_TYPE
+        )
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+            val nameIndex = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            val takenIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)
+            val addedIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+            val albumIdIndex = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_ID)
+            val albumNameIndex = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
+            if (idIndex < 0) return photos
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idIndex)
+                val takenAt = if (takenIndex >= 0 && cursor.getLong(takenIndex) > 0) {
+                    cursor.getLong(takenIndex)
+                } else if (addedIndex >= 0) {
+                    cursor.getLong(addedIndex) * 1_000
+                } else {
+                    0L
+                }
+                photos.put(JSONObject().apply {
+                    put("id", id.toString())
+                    put("uri", Uri.withAppendedPath(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id.toString()
+                    ).toString())
+                    put("albumId", if (albumIdIndex >= 0) {
+                        cursor.getString(albumIdIndex).orEmpty()
+                    } else "")
+                    put("albumName", if (albumNameIndex >= 0) {
+                        cursor.getString(albumNameIndex).orEmpty()
+                    } else "未知相册")
+                    put("displayName", if (nameIndex >= 0) {
+                        cursor.getString(nameIndex).orEmpty()
+                    } else "")
+                    put("takenAt", takenAt)
+                    put("mimeType", if (mimeTypeIndex >= 0) {
+                        cursor.getString(mimeTypeIndex).orEmpty()
+                    } else "")
+                })
+            }
+        }
+        return photos
+    }
+
     fun queueRecord(record: SmsRecord): Boolean {
         if (database.containsRecord(record.recordId, record.contentKey)) return false
         val match = SmsFilter.match(
@@ -235,6 +355,83 @@ class SmsRepository(private val context: Context) {
         val encodedSource = URLEncoder.encode(sourceId, StandardCharsets.UTF_8.name())
         return "$encodedDevice:$encodedSource:$direction"
     }
+
+    private fun mmsDirection(messageBox: Int): String = when (messageBox) {
+        1 -> "inbox"
+        2 -> "sent"
+        3 -> "draft"
+        4 -> "outbox"
+        else -> "unknown"
+    }
+
+    private fun getMmsAddress(messageId: String, direction: String): String {
+        val expectedAddressType = if (direction == "sent") 151 else 137
+        context.contentResolver.query(
+            Uri.parse("content://mms/$messageId/addr"),
+            arrayOf("address", "type"),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val addressIndex = cursor.getColumnIndex("address")
+            val typeIndex = cursor.getColumnIndex("type")
+            while (cursor.moveToNext()) {
+                val address = if (addressIndex >= 0) cursor.getString(addressIndex).orEmpty() else ""
+                val type = if (typeIndex >= 0) cursor.getInt(typeIndex) else 0
+                if (type == expectedAddressType && address != "insert-address-token") {
+                    return address
+                }
+            }
+        }
+        return ""
+    }
+
+    private fun getMmsParts(messageId: String): MmsParts {
+        val attachments = JSONArray()
+        val body = StringBuilder()
+        context.contentResolver.query(
+            Uri.parse("content://mms/part"),
+            arrayOf("_id", "ct", "text"),
+            "mid=?",
+            arrayOf(messageId),
+            null
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndex("_id")
+            val contentTypeIndex = cursor.getColumnIndex("ct")
+            val textIndex = cursor.getColumnIndex("text")
+            while (cursor.moveToNext()) {
+                val id = if (idIndex >= 0) cursor.getString(idIndex).orEmpty() else ""
+                val mimeType = if (contentTypeIndex >= 0) {
+                    cursor.getString(contentTypeIndex).orEmpty()
+                } else ""
+                if (mimeType.startsWith("image/") && id.isNotBlank()) {
+                    attachments.put(JSONObject().apply {
+                        put("id", id)
+                        put("uri", "content://mms/part/$id")
+                        put("mimeType", mimeType)
+                    })
+                } else if (mimeType.startsWith("text/") && textIndex >= 0) {
+                    val text = cursor.getString(textIndex).orEmpty()
+                    if (text.isNotBlank()) {
+                        if (body.isNotEmpty()) body.append('\n')
+                        body.append(text)
+                    }
+                }
+            }
+        }
+        return MmsParts(body.toString(), attachments)
+    }
+
+    private fun hasImagePermission(): Boolean = ContextCompat.checkSelfPermission(
+        context,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    ) == PackageManager.PERMISSION_GRANTED
+
+    private data class MmsParts(val body: String, val attachments: JSONArray)
 
     private fun createContentKey(
         sender: String,

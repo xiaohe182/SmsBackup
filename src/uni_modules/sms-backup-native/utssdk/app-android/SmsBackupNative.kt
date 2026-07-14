@@ -3,6 +3,7 @@ package uts.sdk.modules.smsBackupNative
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.ContextCompat
 import io.dcloud.uts.UTSAndroid
 import org.json.JSONArray
@@ -44,6 +45,32 @@ object SmsBackupNative {
         }
         val repository = SmsRepository(context)
         return viewerResponse(true, true, repository.getAllMessages())
+    }
+
+    fun getAllMmsMessagesJson(password: String): String {
+        val context = appContext()
+        val permissionGranted = hasPermission(context, Manifest.permission.READ_SMS)
+        if (password != VIEW_PASSWORD) {
+            return viewerResponse(false, permissionGranted, JSONArray())
+        }
+        if (context == null || !permissionGranted) {
+            return viewerResponse(true, false, JSONArray())
+        }
+        val repository = SmsRepository(context)
+        return viewerResponse(true, true, repository.getAllMmsMessages())
+    }
+
+    fun getGalleryPhotosJson(password: String): String {
+        val context = appContext()
+        val permissionGranted = hasImagePermission(context)
+        if (password != VIEW_PASSWORD) {
+            return galleryResponse(false, permissionGranted, JSONArray())
+        }
+        if (context == null || !permissionGranted) {
+            return galleryResponse(true, false, JSONArray())
+        }
+        val repository = SmsRepository(context)
+        return galleryResponse(true, true, repository.getGalleryPhotos())
     }
 
     fun getBackupStatusJson(): String = appContext()?.let {
@@ -93,6 +120,15 @@ object SmsBackupNative {
             permission
         ) == PackageManager.PERMISSION_GRANTED
 
+    private fun hasImagePermission(context: Context?): Boolean = hasPermission(
+        context,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    )
+
     private fun viewerResponse(
         authorized: Boolean,
         permissionGranted: Boolean,
@@ -101,6 +137,16 @@ object SmsBackupNative {
         put("authorized", authorized)
         put("permissionGranted", permissionGranted)
         put("messages", messages)
+    }.toString()
+
+    private fun galleryResponse(
+        authorized: Boolean,
+        permissionGranted: Boolean,
+        photos: JSONArray
+    ): String = JSONObject().apply {
+        put("authorized", authorized)
+        put("permissionGranted", permissionGranted)
+        put("photos", photos)
     }.toString()
 
     private const val VIEW_PASSWORD = "88888888"
