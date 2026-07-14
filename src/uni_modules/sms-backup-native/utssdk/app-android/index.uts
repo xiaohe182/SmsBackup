@@ -1,0 +1,88 @@
+import { SmsBackupNative } from 'uts.sdk.modules.smsBackupNative'
+import { UTSAndroid } from 'io.dcloud.uts'
+
+// #ifdef APP-ANDROID
+export function initialize(): void {
+  SmsBackupNative.initialize()
+}
+
+export function getPermissionState(): string {
+  return SmsBackupNative.getPermissionStateJson()
+}
+
+export function requestPermissions(): Promise<boolean> {
+  return new Promise<boolean>((resolve, _reject) => {
+    const activity = UTSAndroid.getUniActivity()
+    if (activity == null) {
+      resolve(false)
+      return
+    }
+    const permissions = [
+      'android.permission.READ_SMS',
+      'android.permission.RECEIVE_SMS'
+    ]
+    if (UTSAndroid.getSystemPermissionDenied(activity, permissions).isEmpty()) {
+      resolve(true)
+      return
+    }
+    UTSAndroid.requestSystemPermission(
+      activity,
+      permissions,
+      (allRight: boolean, _granted: string[]) => resolve(allRight),
+      (_doNotAskAgain: boolean, _granted: string[]) => resolve(false)
+    )
+  })
+}
+
+export function scanExistingMessages(): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.scanExistingMessages())
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getAllMessages(password: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getAllMessagesJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getBackupStatus(): string {
+  return SmsBackupNative.getBackupStatusJson()
+}
+
+export function saveNativeSettings(settingsJson: string): void {
+  SmsBackupNative.saveSettings(settingsJson)
+}
+
+export function saveNativeRules(rulesJson: string): void {
+  SmsBackupNative.saveRules(rulesJson)
+}
+
+export function syncNow(): void {
+  SmsBackupNative.syncNow()
+}
+
+export function testConnection(serverUrl: string): Promise<boolean> {
+  return new Promise<boolean>((resolve, _reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      resolve(SmsBackupNative.testConnection(serverUrl))
+    })
+  })
+}
+
+export function clearQueue(): void {
+  SmsBackupNative.clearQueue()
+}
+// #endif

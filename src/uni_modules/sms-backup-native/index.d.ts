@@ -1,0 +1,11 @@
+export function initialize(): void;
+export function getPermissionState(): string;
+export function requestPermissions(): Promise<boolean>;
+export function scanExistingMessages(): Promise<number>;
+export function getAllMessages(password: string): Promise<string>;
+export function getBackupStatus(): string;
+export function saveNativeSettings(settingsJson: string): void;
+export function saveNativeRules(rulesJson: string): void;
+export function syncNow(): void;
+export function testConnection(serverUrl: string): Promise<boolean>;
+export function clearQueue(): void;

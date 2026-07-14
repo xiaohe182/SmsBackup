@@ -1,0 +1,37 @@
+export type SmsPermissionState = {
+  readSms: boolean,
+  receiveSms: boolean,
+  allGranted: boolean
+}
+
+export type NativeBackupStatus = {
+  available: boolean,
+  permissionGranted: boolean,
+  pendingCount: number,
+  uploadedCount: number,
+  filteredCount: number,
+  lastSyncAt: number | null,
+  message: string
+}
+
+export type NativeViewerMessage = {
+  sourceId: string,
+  threadId: number | null,
+  address: string,
+  body: string,
+  receivedAt: number,
+  sentAt: number | null,
+  type: number,
+  direction: string,
+  read: boolean,
+  seen: boolean,
+  status: number | null,
+  serviceCenter: string | null,
+  simSubscriptionId: number | null
+}
+
+export type NativeViewerResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  messages: NativeViewerMessage[]
+}

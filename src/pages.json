@@ -1,0 +1,34 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "短信备份"
+      }
+    },
+    {
+      "path": "pages/messages/messages",
+      "style": {
+        "navigationBarTitleText": "全部短信"
+      }
+    },
+    {
+      "path": "pages/blacklist/blacklist",
+      "style": {
+        "navigationBarTitleText": "黑名单"
+      }
+    },
+    {
+      "path": "pages/settings/settings",
+      "style": {
+        "navigationBarTitleText": "服务器设置"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "短信备份",
+    "navigationBarBackgroundColor": "#f3f5f2",
+    "backgroundColor": "#f3f5f2"
+  }
+}

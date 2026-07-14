@@ -1,0 +1,162 @@
+import type { BlacklistRule } from "@/domain/blacklist";
+import type { AppSettings } from "@/stores/settings";
+import * as nativeSmsBackup from "@/uni_modules/sms-backup-native";
+
+export interface SmsBackupStatus {
+  available: boolean;
+  permissionGranted: boolean;
+  pendingCount: number;
+  uploadedCount: number;
+  filteredCount: number;
+  lastSyncAt: number | null;
+  message: string;
+}
+
+export type SmsDirection =
+  | "inbox"
+  | "sent"
+  | "draft"
+  | "outbox"
+  | "failed"
+  | "queued"
+  | "unknown";
+
+export interface SmsMessage {
+  sourceId: string;
+  threadId: number | null;
+  address: string;
+  body: string;
+  receivedAt: number;
+  sentAt: number | null;
+  type: number;
+  direction: SmsDirection;
+  read: boolean;
+  seen: boolean;
+  status: number | null;
+  serviceCenter: string | null;
+  simSubscriptionId: number | null;
+}
+
+export interface SmsMessageListResult {
+  authorized: boolean;
+  permissionGranted: boolean;
+  messages: SmsMessage[];
+}
+
+export interface SmsBackupService {
+  initialize(): Promise<void>;
+  getStatus(): Promise<SmsBackupStatus>;
+  requestPermissions(): Promise<boolean>;
+  scanExistingMessages(): Promise<number>;
+  listAllMessages(password: string): Promise<SmsMessageListResult>;
+  syncNow(): Promise<void>;
+  testConnection(serverUrl: string): Promise<boolean>;
+  saveSettings(settings: AppSettings): Promise<void>;
+  saveRules(rules: BlacklistRule[]): Promise<void>;
+  clearQueue(): Promise<void>;
+}
+
+export interface NativeSmsModule {
+  initialize(): void;
+  getPermissionState(): string;
+  requestPermissions(): Promise<boolean>;
+  scanExistingMessages(): Promise<number>;
+  getAllMessages(password: string): Promise<string>;
+  getBackupStatus(): string;
+  saveNativeSettings(settingsJson: string): void;
+  saveNativeRules(rulesJson: string): void;
+  syncNow(): void;
+  testConnection(serverUrl: string): Promise<boolean>;
+  clearQueue(): void;
+}
+
+const UNAVAILABLE_STATUS: SmsBackupStatus = {
+  available: false,
+  permissionGranted: false,
+  pendingCount: 0,
+  uploadedCount: 0,
+  filteredCount: 0,
+  lastSyncAt: null,
+  message: "仅支持 Android App",
+};
+
+export function createUnavailableSmsBackupService(): SmsBackupService {
+  return {
+    initialize: async () => undefined,
+    getStatus: async () => ({ ...UNAVAILABLE_STATUS }),
+    requestPermissions: async () => false,
+    scanExistingMessages: async () => 0,
+    listAllMessages: async () => ({
+      authorized: false,
+      permissionGranted: false,
+      messages: [],
+    }),
+    syncNow: async () => undefined,
+    testConnection: async () => false,
+    saveSettings: async () => undefined,
+    saveRules: async () => undefined,
+    clearQueue: async () => undefined,
+  };
+}
+
+function parseMessageList(raw: string): SmsMessageListResult {
+  const value = JSON.parse(raw) as Partial<SmsMessageListResult>;
+  return {
+    authorized: value.authorized === true,
+    permissionGranted: value.permissionGranted === true,
+    messages: Array.isArray(value.messages) ? value.messages : [],
+  };
+}
+
+function parseStatus(raw: string): SmsBackupStatus {
+  try {
+    const value = JSON.parse(raw) as Partial<SmsBackupStatus>;
+    if (
+      typeof value.available !== "boolean" ||
+      typeof value.permissionGranted !== "boolean" ||
+      typeof value.pendingCount !== "number" ||
+      typeof value.uploadedCount !== "number" ||
+      typeof value.filteredCount !== "number"
+    ) {
+      throw new Error("invalid native status");
+    }
+    return {
+      available: value.available,
+      permissionGranted: value.permissionGranted,
+      pendingCount: value.pendingCount,
+      uploadedCount: value.uploadedCount,
+      filteredCount: value.filteredCount,
+      lastSyncAt: typeof value.lastSyncAt === "number" ? value.lastSyncAt : null,
+      message: typeof value.message === "string" ? value.message : "短信服务已就绪",
+    };
+  } catch {
+    return {
+      ...UNAVAILABLE_STATUS,
+      available: true,
+      message: "原生状态读取失败",
+    };
+  }
+}
+
+export function createAndroidSmsBackupService(
+  native: NativeSmsModule,
+): SmsBackupService {
+  return {
+    initialize: async () => native.initialize(),
+    getStatus: async () => parseStatus(native.getBackupStatus()),
+    requestPermissions: async () => native.requestPermissions(),
+    scanExistingMessages: async () => native.scanExistingMessages(),
+    listAllMessages: async (password) =>
+      parseMessageList(await native.getAllMessages(password)),
+    syncNow: async () => native.syncNow(),
+    testConnection: async (serverUrl) => native.testConnection(serverUrl),
+    saveSettings: async (settings) =>
+      native.saveNativeSettings(JSON.stringify(settings)),
+    saveRules: async (rules) => native.saveNativeRules(JSON.stringify(rules)),
+    clearQueue: async () => native.clearQueue(),
+  };
+}
+
+export const smsBackupService: SmsBackupService = createAndroidSmsBackupService(
+  nativeSmsBackup as NativeSmsModule,
+);
