@@ -34,7 +34,8 @@ class MediaSyncRepository(private val context: Context) {
         return MediaPermissionState(
             canReadImages = images || selected,
             canReadVideos = videos || selected,
-            partialAccess = selected && !(images && videos)
+            // Android 13+ 只授权一种媒体，或 Android 14+ 只授权所选项目，都属于部分访问。
+            partialAccess = selected || !(images && videos)
         )
     }
 

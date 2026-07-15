@@ -23,6 +23,10 @@ describe("Android killed-process backup contract", () => {
     expect(models).toContain("val volumeName: String");
 
     expect(repository).toContain("MediaStore.getExternalVolumeNames");
+    expect(repository).toContain("READ_MEDIA_IMAGES");
+    expect(repository).toContain("READ_MEDIA_VIDEO");
+    expect(repository).toContain("READ_MEDIA_VISUAL_USER_SELECTED");
+    expect(repository).toContain("partialAccess = selected || !(images && videos)");
     expect(repository).toContain("MediaStore.Files.getContentUri");
     expect(repository).toContain("MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE");
     expect(repository).toContain("MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO");
