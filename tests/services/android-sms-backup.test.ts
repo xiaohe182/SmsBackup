@@ -102,7 +102,7 @@ function createNative(overrides: Partial<NativeSmsModule> = {}): NativeSmsModule
     ),
     getBackupStatus: vi.fn(
       () =>
-        '{"available":true,"permissionGranted":true,"pendingCount":2,"uploadedCount":3,"lastSyncAt":1783900800000,"message":"就绪"}',
+        '{"available":true,"permissionGranted":true,"pendingCount":2,"uploadedCount":3,"pendingImageCount":4,"uploadedImageCount":5,"pendingVideoCount":6,"uploadedVideoCount":7,"mediaBytesUploaded":8388608,"lastMediaSyncAt":1783904400000,"lastMediaError":null,"lastSyncAt":1783900800000,"message":"就绪"}',
     ),
     saveNativeSettings: vi.fn(),
     syncNow: vi.fn(),
@@ -121,6 +121,13 @@ describe("Android SMS backup service", () => {
       permissionGranted: true,
       pendingCount: 2,
       uploadedCount: 3,
+      pendingImageCount: 4,
+      uploadedImageCount: 5,
+      pendingVideoCount: 6,
+      uploadedVideoCount: 7,
+      mediaBytesUploaded: 8_388_608,
+      lastMediaSyncAt: 1_783_904_400_000,
+      lastMediaError: null,
     });
     await expect(service.requestPermissions()).resolves.toBe(true);
     await expect(service.scanExistingMessages()).resolves.toBe(7);
@@ -144,6 +151,25 @@ describe("Android SMS backup service", () => {
     await expect(service.getStatus()).resolves.toMatchObject({
       available: true,
       message: "原生状态读取失败",
+    });
+  });
+
+  it("defaults new media counters when an older native module omits them", async () => {
+    const service = createAndroidSmsBackupService(
+      createNative({
+        getBackupStatus: () =>
+          '{"available":true,"permissionGranted":true,"pendingCount":2,"uploadedCount":3,"lastSyncAt":null,"message":"就绪"}',
+      }),
+    );
+
+    await expect(service.getStatus()).resolves.toMatchObject({
+      pendingImageCount: 0,
+      uploadedImageCount: 0,
+      pendingVideoCount: 0,
+      uploadedVideoCount: 0,
+      mediaBytesUploaded: 0,
+      lastMediaSyncAt: null,
+      lastMediaError: null,
     });
   });
 

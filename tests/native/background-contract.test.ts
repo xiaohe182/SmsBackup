@@ -79,6 +79,17 @@ describe("Android killed-process backup contract", () => {
     expect(native).toContain("WorkScheduler.enqueueMediaSync");
     expect(native).toContain("WorkScheduler.enqueueReconciliation");
     expect(native).toContain("WorkScheduler.enqueueUpload");
+
+    const repository = read("SmsRepository.kt");
+    expect(repository).toContain(
+      "metadataInt(KEY_MEDIA_UPLOADED_IMAGES) + result.imageUploaded",
+    );
+    expect(repository).toContain(
+      "metadataInt(KEY_MEDIA_UPLOADED_VIDEOS) + result.videoUploaded",
+    );
+    expect(repository).toContain(
+      "metadataLong(KEY_MEDIA_BYTES_UPLOADED) + result.mediaBytesUploaded",
+    );
   });
 
   it("registers a protected manifest receiver for incoming SMS", () => {

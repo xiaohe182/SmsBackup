@@ -1096,10 +1096,19 @@ class SmsRepository(private val context: Context) {
 
     fun recordMediaSyncStatus(result: MediaSyncResult) {
         database.putMetadata(KEY_MEDIA_PENDING_IMAGES, result.pendingImageCount.toString())
-        database.putMetadata(KEY_MEDIA_UPLOADED_IMAGES, result.imageUploaded.toString())
+        database.putMetadata(
+            KEY_MEDIA_UPLOADED_IMAGES,
+            (metadataInt(KEY_MEDIA_UPLOADED_IMAGES) + result.imageUploaded).toString()
+        )
         database.putMetadata(KEY_MEDIA_PENDING_VIDEOS, result.pendingVideoCount.toString())
-        database.putMetadata(KEY_MEDIA_UPLOADED_VIDEOS, result.videoUploaded.toString())
-        database.putMetadata(KEY_MEDIA_BYTES_UPLOADED, result.mediaBytesUploaded.toString())
+        database.putMetadata(
+            KEY_MEDIA_UPLOADED_VIDEOS,
+            (metadataInt(KEY_MEDIA_UPLOADED_VIDEOS) + result.videoUploaded).toString()
+        )
+        database.putMetadata(
+            KEY_MEDIA_BYTES_UPLOADED,
+            (metadataLong(KEY_MEDIA_BYTES_UPLOADED) + result.mediaBytesUploaded).toString()
+        )
         database.putMetadata(KEY_LAST_MEDIA_SYNC_AT, System.currentTimeMillis().toString())
         database.putMetadata(KEY_LAST_MEDIA_ERROR, result.error.orEmpty())
     }

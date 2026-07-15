@@ -17,6 +17,13 @@ export interface SmsBackupStatus {
   permissionGranted: boolean;
   pendingCount: number;
   uploadedCount: number;
+  pendingImageCount: number;
+  uploadedImageCount: number;
+  pendingVideoCount: number;
+  uploadedVideoCount: number;
+  mediaBytesUploaded: number;
+  lastMediaSyncAt: number | null;
+  lastMediaError: string | null;
   lastSyncAt: number | null;
   message: string;
 }
@@ -176,6 +183,13 @@ const UNAVAILABLE_STATUS: SmsBackupStatus = {
   permissionGranted: false,
   pendingCount: 0,
   uploadedCount: 0,
+  pendingImageCount: 0,
+  uploadedImageCount: 0,
+  pendingVideoCount: 0,
+  uploadedVideoCount: 0,
+  mediaBytesUploaded: 0,
+  lastMediaSyncAt: null,
+  lastMediaError: null,
   lastSyncAt: null,
   message: "仅支持 Android App",
 };
@@ -600,6 +614,17 @@ function parseStatus(raw: string): SmsBackupStatus {
       permissionGranted: value.permissionGranted,
       pendingCount: value.pendingCount,
       uploadedCount: value.uploadedCount,
+      // 新字段全部提供向后兼容默认值，旧 APK 与新页面混用时不会整页失效。
+      pendingImageCount: finiteNumber(value.pendingImageCount) ?? 0,
+      uploadedImageCount: finiteNumber(value.uploadedImageCount) ?? 0,
+      pendingVideoCount: finiteNumber(value.pendingVideoCount) ?? 0,
+      uploadedVideoCount: finiteNumber(value.uploadedVideoCount) ?? 0,
+      mediaBytesUploaded: finiteNumber(value.mediaBytesUploaded) ?? 0,
+      lastMediaSyncAt: finiteNumber(value.lastMediaSyncAt),
+      lastMediaError:
+        typeof value.lastMediaError === "string" && value.lastMediaError.trim()
+          ? value.lastMediaError
+          : null,
       lastSyncAt: typeof value.lastSyncAt === "number" ? value.lastSyncAt : null,
       message: typeof value.message === "string" ? value.message : "短信服务已就绪",
     };

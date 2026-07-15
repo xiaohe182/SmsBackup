@@ -7,12 +7,18 @@ function read(relativePath: string): string {
 }
 
 describe("automatic SMS collection home page", () => {
-  it("describes automatic collection and treats manual scanning as reconciliation", () => {
+  it("starts one-click SMS, image and video synchronization", () => {
     const page = read("src/pages/index/index.vue");
 
-    expect(page).toContain("授权一次后自动收集");
-    expect(page).toContain("立即补扫收发短信");
+    expect(page).toContain("一键同步全部");
+    expect(page).toContain("收到短信");
+    expect(page).toContain("已发短信");
+    expect(page).toContain("图片");
+    expect(page).toContain("视频");
+    expect(page).toContain("相册时间范围由服务器动态控制");
+    expect(page).toContain("await smsBackupService.requestMediaPermissions()");
     expect(page).toContain("await smsBackupService.syncNow()");
+    expect(page).not.toContain("await smsBackupService.scanExistingMessages()");
   });
 
   it("configures the shared API token and warns about public HTTP", () => {
