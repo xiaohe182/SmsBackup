@@ -11,6 +11,35 @@ function read(relativePath: string): string {
 }
 
 describe("Android killed-process backup contract", () => {
+  it("pages server-window images and videos across accessible MediaStore volumes", () => {
+    const models = read("MediaSyncModels.kt");
+    const repository = read("MediaSyncRepository.kt");
+
+    expect(models).toContain("data class MediaSyncCommand");
+    expect(models).toContain("val windowStart: Long");
+    expect(models).toContain("val windowEnd: Long");
+    expect(models).toContain("data class MediaManifestItem");
+    expect(models).toContain("val mediaType: String");
+    expect(models).toContain("val volumeName: String");
+
+    expect(repository).toContain("MediaStore.getExternalVolumeNames");
+    expect(repository).toContain("MediaStore.Files.getContentUri");
+    expect(repository).toContain("MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE");
+    expect(repository).toContain("MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO");
+    expect(repository).toContain("MediaStore.MediaColumns.DATE_TAKEN");
+    expect(repository).toContain("MediaStore.MediaColumns.DATE_ADDED");
+    expect(repository).toContain("MediaStore.MediaColumns.DATE_MODIFIED");
+    expect(repository).toContain("MediaStore.MediaColumns.SIZE");
+    expect(repository).toContain("MediaStore.Video.VideoColumns.DURATION");
+    expect(repository).toContain("command.windowStart");
+    expect(repository).toContain("command.windowEnd");
+    expect(repository).toContain("ContentResolver.QUERY_ARG_LIMIT");
+    expect(repository).toContain("ContentResolver.QUERY_ARG_OFFSET");
+    expect(repository).toContain("MAX_MANIFEST_PAGE_SIZE = 100");
+    expect(repository).toContain("MessageDigest.getInstance(\"SHA-256\")");
+    expect(repository).not.toMatch(/7\s*\*\s*24|168\s*\*\s*60/);
+  });
+
   it("registers a protected manifest receiver for incoming SMS", () => {
     const manifest = read("AndroidManifest.xml");
     expect(manifest).toContain("SmsReceiver");
