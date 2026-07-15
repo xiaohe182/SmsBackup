@@ -34,10 +34,9 @@ function createNative(overrides: Partial<NativeSmsModule> = {}): NativeSmsModule
     ),
     getBackupStatus: vi.fn(
       () =>
-        '{"available":true,"permissionGranted":true,"pendingCount":2,"uploadedCount":3,"filteredCount":4,"lastSyncAt":1783900800000,"message":"就绪"}',
+        '{"available":true,"permissionGranted":true,"pendingCount":2,"uploadedCount":3,"lastSyncAt":1783900800000,"message":"就绪"}',
     ),
     saveNativeSettings: vi.fn(),
-    saveNativeRules: vi.fn(),
     syncNow: vi.fn(),
     testConnection: vi.fn(async () => true),
     clearQueue: vi.fn(),
@@ -54,23 +53,19 @@ describe("Android SMS backup service", () => {
       permissionGranted: true,
       pendingCount: 2,
       uploadedCount: 3,
-      filteredCount: 4,
     });
     await expect(service.requestPermissions()).resolves.toBe(true);
     await expect(service.scanExistingMessages()).resolves.toBe(7);
     await expect(service.testConnection("https://example.com")).resolves.toBe(true);
   });
 
-  it("serializes settings and blacklist rules for killed-process native storage", async () => {
+  it("serializes settings for killed-process native storage", async () => {
     const native = createNative();
     const service = createAndroidSmsBackupService(native);
-    const rules = [{ id: "one", kind: "sender" as const, value: "淘宝", enabled: true }];
 
     await service.saveSettings(DEFAULT_SETTINGS);
-    await service.saveRules(rules);
 
     expect(native.saveNativeSettings).toHaveBeenCalledWith(JSON.stringify(DEFAULT_SETTINGS));
-    expect(native.saveNativeRules).toHaveBeenCalledWith(JSON.stringify(rules));
   });
 
   it("returns a safe status when native JSON is malformed", async () => {

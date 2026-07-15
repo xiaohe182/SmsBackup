@@ -72,7 +72,6 @@ describe("unavailable SMS backup service", () => {
       }),
       getBackupStatus: () => "{}",
       saveNativeSettings: () => undefined,
-      saveNativeRules: () => undefined,
       syncNow: () => undefined,
       testConnection: async () => false,
       clearQueue: () => undefined,

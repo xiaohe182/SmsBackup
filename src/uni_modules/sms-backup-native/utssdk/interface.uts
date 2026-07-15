@@ -9,7 +9,6 @@ export type NativeBackupStatus = {
   permissionGranted: boolean,
   pendingCount: number,
   uploadedCount: number,
-  filteredCount: number,
   lastSyncAt: number | null,
   message: string
 }

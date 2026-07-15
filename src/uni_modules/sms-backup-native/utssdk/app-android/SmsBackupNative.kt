@@ -75,17 +75,13 @@ object SmsBackupNative {
 
     fun getBackupStatusJson(): String = appContext()?.let {
         SmsRepository(it).getStatusJson()
-    } ?: "{\"available\":false,\"permissionGranted\":false,\"pendingCount\":0,\"uploadedCount\":0,\"filteredCount\":0,\"lastSyncAt\":null,\"message\":\"Android 上下文不可用\"}"
+    } ?: "{\"available\":false,\"permissionGranted\":false,\"pendingCount\":0,\"uploadedCount\":0,\"lastSyncAt\":null,\"message\":\"Android 上下文不可用\"}"
 
     fun saveSettings(json: String) {
         appContext()?.let {
             SmsRepository(it).saveSettings(json)
             WorkScheduler.enqueueUpload(it)
         }
-    }
-
-    fun saveRules(json: String) {
-        appContext()?.let { SmsRepository(it).saveRules(json) }
     }
 
     fun clearQueue() {

@@ -19,12 +19,6 @@
       }
     },
     {
-      "path": "pages/blacklist/blacklist",
-      "style": {
-        "navigationBarTitleText": "黑名单"
-      }
-    },
-    {
       "path": "pages/settings/settings",
       "style": {
         "navigationBarTitleText": "服务器设置"

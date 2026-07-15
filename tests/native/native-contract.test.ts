@@ -40,7 +40,6 @@ describe("Android native SMS plugin contract", () => {
       "getGalleryPhotos",
       "getBackupStatus",
       "saveNativeSettings",
-      "saveNativeRules",
       "syncNow",
       "testConnection",
       "clearQueue",
@@ -56,15 +55,20 @@ describe("Android native SMS plugin contract", () => {
     expect(database).toContain("CONFLICT_IGNORE");
     expect(database).toContain("pending");
     expect(database).toContain("uploaded");
-    expect(database).toContain("filtered_records");
+    expect(database).toContain("DATABASE_VERSION = 4");
+    expect(database).toContain("DROP TABLE IF EXISTS filtered_records");
+    expect(database).not.toContain("SELECT 1 FROM filtered_records");
   });
 
-  it("reads the system provider and filters before queue insertion", () => {
+  it("queues every unique SMS without blacklist filtering", () => {
     const repository = read("SmsRepository.kt");
     expect(repository).toContain("Telephony.Sms.CONTENT_URI");
     expect(repository).toContain("Manifest.permission.READ_SMS");
-    expect(repository.indexOf("SmsFilter.match")).toBeLessThan(
-      repository.indexOf("database.enqueue"),
+    expect(repository).not.toContain("SmsFilter.match");
+    expect(repository).not.toContain("recordFiltered");
+    expect(repository).toContain("database.enqueue(record)");
+    expect(repository.indexOf("containsRecord")).toBeLessThan(
+      repository.indexOf("database.enqueue(record)"),
     );
   });
 

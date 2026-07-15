@@ -4,7 +4,7 @@
       <view>
         <text class="eyebrow">SMS BACKUP</text>
         <text class="title">短信备份</text>
-        <text class="subtitle">授权后自动备份，广告短信先过滤</text>
+        <text class="subtitle">授权后自动备份全部收发短信</text>
       </view>
       <view :class="['status-dot', status.permissionGranted ? 'online' : 'offline']" />
     </view>
@@ -22,10 +22,6 @@
       <view class="stat-card">
         <text class="stat-value">{{ status.uploadedCount }}</text>
         <text class="stat-label">已备份</text>
-      </view>
-      <view class="stat-card">
-        <text class="stat-value">{{ status.filteredCount }}</text>
-        <text class="stat-label">已过滤</text>
       </view>
     </view>
 
@@ -67,10 +63,6 @@
         <text class="link-title viewer-title">查看全部短信</text>
         <text class="link-desc viewer-desc">输入查看密码后读取本机完整短信</text>
       </view>
-      <view class="link-card" @click="openBlacklist">
-        <text class="link-title">黑名单</text>
-        <text class="link-desc">发件人和关键词过滤</text>
-      </view>
       <view class="link-card" @click="openSettings">
         <text class="link-title">服务器设置</text>
         <text class="link-desc">地址、设备名、同步开关</text>
@@ -93,7 +85,6 @@ const emptyStatus: SmsBackupStatus = {
   permissionGranted: false,
   pendingCount: 0,
   uploadedCount: 0,
-  filteredCount: 0,
   lastSyncAt: null,
   message: "正在检查 Android 服务",
 };
@@ -141,10 +132,6 @@ async function scanAndSync() {
   }
 }
 
-function openBlacklist() {
-  uni.navigateTo({ url: "/pages/blacklist/blacklist" });
-}
-
 function openMessages() {
   const url = "/pages/messages/messages";
   uni.navigateTo({
@@ -180,7 +167,7 @@ page { background: #f3f5f2; color: #14231a; }
 .notice { padding: 26rpx; border: 1rpx solid #dce5dc; border-radius: 24rpx; background: #f9fbf8; }
 .notice-title { display: block; font-size: 27rpx; font-weight: 700; }
 .notice-text { display: block; margin-top: 8rpx; color: #66736a; font-size: 25rpx; line-height: 1.6; }
-.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; margin-top: 22rpx; }
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; margin-top: 22rpx; }
 .stat-card { padding: 28rpx 16rpx; border-radius: 22rpx; background: #173f2a; text-align: center; }
 .stat-value { display: block; color: #fff; font-size: 44rpx; font-weight: 800; }
 .stat-label { display: block; margin-top: 6rpx; color: #bdd4c5; font-size: 23rpx; }

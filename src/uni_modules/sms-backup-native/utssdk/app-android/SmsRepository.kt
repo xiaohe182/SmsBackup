@@ -34,10 +34,6 @@ class SmsRepository(private val context: Context) {
         preferences.edit().putString(KEY_SETTINGS, json).apply()
     }
 
-    fun saveRules(json: String) {
-        preferences.edit().putString(KEY_RULES, json).apply()
-    }
-
     fun getSettingsJson(): String = preferences.getString(KEY_SETTINGS, "{}") ?: "{}"
 
     fun scanExistingMessages(): Int {
@@ -290,16 +286,7 @@ class SmsRepository(private val context: Context) {
 
     fun queueRecord(record: SmsRecord): Boolean {
         if (database.containsRecord(record.recordId, record.contentKey)) return false
-        val match = SmsFilter.match(
-            record.sender,
-            record.body,
-            preferences.getString(KEY_RULES, null)
-        )
-        return if (match != null) {
-            database.recordFiltered(record.recordId, record.contentKey, match.id)
-        } else {
-            database.enqueue(record)
-        }
+        return database.enqueue(record)
     }
 
     fun queueIncoming(
@@ -332,7 +319,6 @@ class SmsRepository(private val context: Context) {
             put("permissionGranted", hasReadPermission() && hasReceivePermission())
             put("pendingCount", stats.pendingCount)
             put("uploadedCount", stats.uploadedCount)
-            put("filteredCount", stats.filteredCount)
             put("lastSyncAt", lastSyncAt ?: JSONObject.NULL)
             put("message", if (hasReadPermission()) "短信服务已就绪" else "等待短信授权")
         }.toString()
@@ -454,7 +440,6 @@ class SmsRepository(private val context: Context) {
         private const val PREFERENCES_NAME = "sms_backup_native"
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_SETTINGS = "settings_json"
-        private const val KEY_RULES = "rules_json"
         private const val KEY_LAST_SYNC_AT = "last_sync_at"
     }
 }

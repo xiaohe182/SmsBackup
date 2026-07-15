@@ -22,15 +22,7 @@ data class QueuedSms(
     val attempts: Int
 )
 
-data class BlacklistRule(
-    val id: String,
-    val kind: String,
-    val value: String,
-    val enabled: Boolean
-)
-
 data class QueueStats(
     val pendingCount: Int,
-    val uploadedCount: Int,
-    val filteredCount: Int
+    val uploadedCount: Int
 )

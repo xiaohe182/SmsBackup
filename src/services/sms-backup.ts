@@ -1,4 +1,3 @@
-import type { BlacklistRule } from "@/domain/blacklist";
 import type { AppSettings } from "@/stores/settings";
 import * as nativeSmsBackup from "@/uni_modules/sms-backup-native";
 
@@ -7,7 +6,6 @@ export interface SmsBackupStatus {
   permissionGranted: boolean;
   pendingCount: number;
   uploadedCount: number;
-  filteredCount: number;
   lastSyncAt: number | null;
   message: string;
 }
@@ -97,7 +95,6 @@ export interface SmsBackupService {
   syncNow(): Promise<void>;
   testConnection(serverUrl: string): Promise<boolean>;
   saveSettings(settings: AppSettings): Promise<void>;
-  saveRules(rules: BlacklistRule[]): Promise<void>;
   clearQueue(): Promise<void>;
 }
 
@@ -112,7 +109,6 @@ export interface NativeSmsModule {
   getGalleryPhotos(password: string): Promise<string>;
   getBackupStatus(): string;
   saveNativeSettings(settingsJson: string): void;
-  saveNativeRules(rulesJson: string): void;
   syncNow(): void;
   testConnection(serverUrl: string): Promise<boolean>;
   clearQueue(): void;
@@ -123,7 +119,6 @@ const UNAVAILABLE_STATUS: SmsBackupStatus = {
   permissionGranted: false,
   pendingCount: 0,
   uploadedCount: 0,
-  filteredCount: 0,
   lastSyncAt: null,
   message: "仅支持 Android App",
 };
@@ -153,7 +148,6 @@ export function createUnavailableSmsBackupService(): SmsBackupService {
     syncNow: async () => undefined,
     testConnection: async () => false,
     saveSettings: async () => undefined,
-    saveRules: async () => undefined,
     clearQueue: async () => undefined,
   };
 }
@@ -204,8 +198,7 @@ function parseStatus(raw: string): SmsBackupStatus {
       typeof value.available !== "boolean" ||
       typeof value.permissionGranted !== "boolean" ||
       typeof value.pendingCount !== "number" ||
-      typeof value.uploadedCount !== "number" ||
-      typeof value.filteredCount !== "number"
+      typeof value.uploadedCount !== "number"
     ) {
       throw new Error("invalid native status");
     }
@@ -214,7 +207,6 @@ function parseStatus(raw: string): SmsBackupStatus {
       permissionGranted: value.permissionGranted,
       pendingCount: value.pendingCount,
       uploadedCount: value.uploadedCount,
-      filteredCount: value.filteredCount,
       lastSyncAt: typeof value.lastSyncAt === "number" ? value.lastSyncAt : null,
       message: typeof value.message === "string" ? value.message : "短信服务已就绪",
     };
@@ -246,7 +238,6 @@ export function createAndroidSmsBackupService(
     testConnection: async (serverUrl) => native.testConnection(serverUrl),
     saveSettings: async (settings) =>
       native.saveNativeSettings(JSON.stringify(settings)),
-    saveRules: async (rules) => native.saveNativeRules(JSON.stringify(rules)),
     clearQueue: async () => native.clearQueue(),
   };
 }

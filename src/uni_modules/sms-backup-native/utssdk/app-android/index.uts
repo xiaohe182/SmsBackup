@@ -114,10 +114,6 @@ export function saveNativeSettings(settingsJson: string): void {
   SmsBackupNative.saveSettings(settingsJson)
 }
 
-export function saveNativeRules(rulesJson: string): void {
-  SmsBackupNative.saveRules(rulesJson)
-}
-
 export function syncNow(): void {
   SmsBackupNative.syncNow()
 }

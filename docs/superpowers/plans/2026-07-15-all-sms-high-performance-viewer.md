@@ -64,7 +64,7 @@ it("queues every unique SMS without blacklist filtering", () => {
 
 it("lets legacy filtered messages enter the queue after migration", () => {
   const database = read("SmsQueueDatabase.kt");
-  expect(database).toContain("DATABASE_VERSION = 3");
+  expect(database).toContain("DATABASE_VERSION = 4");
   expect(database).toContain("DROP TABLE IF EXISTS filtered_records");
   expect(database).not.toContain("SELECT 1 FROM filtered_records");
 });
@@ -78,10 +78,10 @@ Expected: FAIL because `SmsFilter.match`, filter statistics, and rule APIs still
 
 - [ ] **Step 3: Remove filter behavior and migrate the queue database**
 
-Implement database version 3 so new databases only create `sms_queue` and `metadata`; upgrades from versions 1–2 execute:
+Implement database version 4 so new databases only create `sms_queue` and `metadata`; upgrades from versions 1–3 execute:
 
 ```kotlin
-if (oldVersion < 3) {
+if (oldVersion < 4) {
     database.execSQL("DROP TABLE IF EXISTS filtered_records")
 }
 ```

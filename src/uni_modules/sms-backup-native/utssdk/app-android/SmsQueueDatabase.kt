@@ -30,16 +30,6 @@ class SmsQueueDatabase private constructor(context: Context) :
             """.trimIndent()
         )
         database.execSQL(
-            """
-            CREATE TABLE filtered_records (
-                record_id TEXT PRIMARY KEY,
-                content_key TEXT NOT NULL UNIQUE,
-                rule_id TEXT NOT NULL,
-                filtered_at INTEGER NOT NULL
-            )
-            """.trimIndent()
-        )
-        database.execSQL(
             "CREATE TABLE metadata (meta_key TEXT PRIMARY KEY, meta_value TEXT NOT NULL)"
         )
         database.execSQL("CREATE INDEX idx_sms_queue_state ON sms_queue(state, id)")
@@ -51,9 +41,11 @@ class SmsQueueDatabase private constructor(context: Context) :
         }
         if (oldVersion < 3) {
             database.execSQL("ALTER TABLE sms_queue ADD COLUMN content_key TEXT")
-            database.execSQL("ALTER TABLE filtered_records ADD COLUMN content_key TEXT")
             database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_queue_content_key ON sms_queue(content_key)")
-            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_filtered_content_key ON filtered_records(content_key)")
+        }
+        if (oldVersion < 4) {
+            // 旧版过滤记录必须删除，否则曾被过滤的短信重新扫描时仍可能被历史状态误判。
+            database.execSQL("DROP TABLE IF EXISTS filtered_records")
         }
     }
 
@@ -79,38 +71,16 @@ class SmsQueueDatabase private constructor(context: Context) :
         ) != -1L
     }
 
-    @Synchronized
-    fun recordFiltered(recordId: String, contentKey: String, ruleId: String): Boolean {
-        val values = ContentValues().apply {
-            put("record_id", recordId)
-            put("content_key", contentKey)
-            put("rule_id", ruleId)
-            put("filtered_at", System.currentTimeMillis())
-        }
-        return writableDatabase.insertWithOnConflict(
-            "filtered_records",
-            null,
-            values,
-            SQLiteDatabase.CONFLICT_IGNORE
-        ) != -1L
-    }
-
     fun containsRecord(recordId: String, contentKey: String): Boolean {
         readableDatabase.rawQuery(
-            """
-            SELECT 1 FROM sms_queue WHERE record_id = ? OR content_key = ?
-            UNION ALL
-            SELECT 1 FROM filtered_records WHERE record_id = ? OR content_key = ?
-            LIMIT 1
-            """.trimIndent(),
-            arrayOf(recordId, contentKey, recordId, contentKey)
+            "SELECT 1 FROM sms_queue WHERE record_id = ? OR content_key = ? LIMIT 1",
+            arrayOf(recordId, contentKey)
         ).use { cursor -> return cursor.moveToFirst() }
     }
 
     fun getStats(): QueueStats = QueueStats(
         pendingCount = count("sms_queue", "state = 'pending'"),
-        uploadedCount = count("sms_queue", "state = 'uploaded'"),
-        filteredCount = count("filtered_records", null)
+        uploadedCount = count("sms_queue", "state = 'uploaded'")
     )
 
     fun getPending(limit: Int = 50): List<QueuedSms> {
@@ -194,7 +164,6 @@ class SmsQueueDatabase private constructor(context: Context) :
         writableDatabase.beginTransaction()
         try {
             writableDatabase.delete("sms_queue", null, null)
-            writableDatabase.delete("filtered_records", null, null)
             writableDatabase.delete("metadata", null, null)
             writableDatabase.setTransactionSuccessful()
         } finally {
@@ -211,7 +180,7 @@ class SmsQueueDatabase private constructor(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "sms_backup.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
 
         @Volatile
         private var instance: SmsQueueDatabase? = null
