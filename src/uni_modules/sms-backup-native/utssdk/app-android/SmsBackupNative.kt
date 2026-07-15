@@ -172,6 +172,7 @@ object SmsBackupNative {
         appContext()?.let {
             SmsRepository(it).saveSettings(json)
             WorkScheduler.enqueueUpload(it)
+            WorkScheduler.enqueueMediaSync(it)
         }
     }
 
@@ -180,7 +181,11 @@ object SmsBackupNative {
     }
 
     fun syncNow() {
-        appContext()?.let { WorkScheduler.enqueueUpload(it) }
+        appContext()?.let {
+            WorkScheduler.enqueueReconciliation(it)
+            WorkScheduler.enqueueUpload(it)
+            WorkScheduler.enqueueMediaSync(it)
+        }
     }
 
     fun testConnection(serverUrl: String): Boolean {

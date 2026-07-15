@@ -3,6 +3,29 @@ package uts.sdk.modules.smsBackupNative
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class MediaClientSettings(
+    val serverUrl: String,
+    val apiToken: String,
+    val deviceName: String,
+    val syncEnabled: Boolean,
+    val allowInsecureHttp: Boolean
+) {
+    companion object {
+        fun fromJson(json: String): MediaClientSettings = try {
+            val value = JSONObject(json)
+            MediaClientSettings(
+                serverUrl = value.optString("serverUrl", "").trimEnd('/'),
+                apiToken = value.optString("apiToken", "88888888").ifBlank { "88888888" },
+                deviceName = value.optString("deviceName", "家人手机"),
+                syncEnabled = value.optBoolean("syncEnabled", true),
+                allowInsecureHttp = value.optBoolean("allowInsecureHttp", false)
+            )
+        } catch (_: Exception) {
+            MediaClientSettings("", "88888888", "家人手机", true, false)
+        }
+    }
+}
+
 data class MediaSyncCommand(
     val id: String,
     val deviceId: String,
@@ -107,6 +130,8 @@ data class MediaSyncResult(
     var smsQueued: Int = 0,
     var imageUploaded: Int = 0,
     var videoUploaded: Int = 0,
+    var pendingImageCount: Int = 0,
+    var pendingVideoCount: Int = 0,
     var mediaBytesUploaded: Long = 0L,
     var error: String? = null
 ) {
@@ -115,6 +140,8 @@ data class MediaSyncResult(
         put("smsQueued", smsQueued)
         put("imageUploaded", imageUploaded)
         put("videoUploaded", videoUploaded)
+        put("pendingImageCount", pendingImageCount)
+        put("pendingVideoCount", pendingVideoCount)
         put("mediaBytesUploaded", mediaBytesUploaded)
         put("error", error ?: JSONObject.NULL)
     }

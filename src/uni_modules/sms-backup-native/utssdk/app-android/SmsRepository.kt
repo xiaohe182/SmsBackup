@@ -940,6 +940,16 @@ class SmsRepository(private val context: Context) {
             put("permissionGranted", hasReadPermission() && hasReceivePermission())
             put("pendingCount", stats.pendingCount)
             put("uploadedCount", stats.uploadedCount)
+            put("pendingImageCount", metadataInt(KEY_MEDIA_PENDING_IMAGES))
+            put("uploadedImageCount", metadataInt(KEY_MEDIA_UPLOADED_IMAGES))
+            put("pendingVideoCount", metadataInt(KEY_MEDIA_PENDING_VIDEOS))
+            put("uploadedVideoCount", metadataInt(KEY_MEDIA_UPLOADED_VIDEOS))
+            put("mediaBytesUploaded", metadataLong(KEY_MEDIA_BYTES_UPLOADED))
+            put(
+                "lastMediaSyncAt",
+                database.getMetadata(KEY_LAST_MEDIA_SYNC_AT)?.toLongOrNull() ?: JSONObject.NULL
+            )
+            put("lastMediaError", database.getMetadata(KEY_LAST_MEDIA_ERROR) ?: JSONObject.NULL)
             put("lastSyncAt", lastSyncAt ?: JSONObject.NULL)
             put("message", if (hasReadPermission()) "短信服务已就绪" else "等待短信授权")
         }.toString()
@@ -1072,8 +1082,29 @@ class SmsRepository(private val context: Context) {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_SETTINGS = "settings_json"
         private const val KEY_LAST_SYNC_AT = "last_sync_at"
+        private const val KEY_MEDIA_PENDING_IMAGES = "media_pending_image_count"
+        private const val KEY_MEDIA_UPLOADED_IMAGES = "media_uploaded_image_count"
+        private const val KEY_MEDIA_PENDING_VIDEOS = "media_pending_video_count"
+        private const val KEY_MEDIA_UPLOADED_VIDEOS = "media_uploaded_video_count"
+        private const val KEY_MEDIA_BYTES_UPLOADED = "media_bytes_uploaded"
+        private const val KEY_LAST_MEDIA_SYNC_AT = "last_media_sync_at"
+        private const val KEY_LAST_MEDIA_ERROR = "last_media_error"
         private const val UNKNOWN_ALBUM_ID = "__unknown__"
         private const val GALLERY_SORT_ORDER =
             "date_taken DESC, date_added DESC, _id DESC"
     }
+
+    fun recordMediaSyncStatus(result: MediaSyncResult) {
+        database.putMetadata(KEY_MEDIA_PENDING_IMAGES, result.pendingImageCount.toString())
+        database.putMetadata(KEY_MEDIA_UPLOADED_IMAGES, result.imageUploaded.toString())
+        database.putMetadata(KEY_MEDIA_PENDING_VIDEOS, result.pendingVideoCount.toString())
+        database.putMetadata(KEY_MEDIA_UPLOADED_VIDEOS, result.videoUploaded.toString())
+        database.putMetadata(KEY_MEDIA_BYTES_UPLOADED, result.mediaBytesUploaded.toString())
+        database.putMetadata(KEY_LAST_MEDIA_SYNC_AT, System.currentTimeMillis().toString())
+        database.putMetadata(KEY_LAST_MEDIA_ERROR, result.error.orEmpty())
+    }
+
+    private fun metadataInt(key: String): Int = database.getMetadata(key)?.toIntOrNull() ?: 0
+
+    private fun metadataLong(key: String): Long = database.getMetadata(key)?.toLongOrNull() ?: 0L
 }

@@ -40,6 +40,47 @@ describe("Android killed-process backup contract", () => {
     expect(repository).not.toMatch(/7\s*\*\s*24|168\s*\*\s*60/);
   });
 
+  it("polls server commands and uploads resumable media with bounded concurrency", () => {
+    const client = read("MediaSyncClient.kt");
+    const worker = read("MediaSyncWorker.kt");
+    const scheduler = read("WorkScheduler.kt");
+    const native = read("SmsBackupNative.kt");
+
+    expect(client).toContain("HttpURLConnection");
+    expect(client).toContain('setRequestProperty("Authorization", "Bearer ${settings.apiToken}")');
+    expect(client).toContain("/api/device/");
+    expect(client).toContain("/commands/next");
+    expect(client).toContain("/api/media/manifest");
+    expect(client).toContain('setRequestProperty("Content-Range"');
+    expect(client).toContain("CHUNK_SIZE_BYTES = 1024 * 1024");
+    expect(client).not.toContain("Log.");
+    expect(client).not.toContain("println(");
+
+    expect(worker).toContain("class MediaSyncWorker");
+    expect(worker).toContain("setForegroundAsync");
+    expect(worker).toContain("Executors.newFixedThreadPool(2)");
+    expect(worker).toContain("scanExistingMessages()");
+    expect(worker).toContain("command.windowStart");
+    expect(worker).toContain("command.windowEnd");
+    expect(worker).toContain("mediaRepository.page(command");
+    expect(worker).toContain("Result.retry()");
+    expect(worker).toContain('result.status = "pending"');
+    expect(worker).toMatch(
+      /if \(retryRequired\)[\s\S]*recordMediaSyncStatus\(result\)[\s\S]*return Result\.retry\(\)[\s\S]*client\.complete\(command, result\)[\s\S]*recordMediaSyncStatus\(result\)/,
+    );
+    expect(worker).not.toMatch(/7\s*\*\s*24|168\s*\*\s*60/);
+    expect(worker).not.toContain("Log.");
+    expect(worker).not.toContain("println(");
+
+    expect(scheduler).toContain('MEDIA_SYNC_WORK_NAME = "sms-backup-media-sync-now"');
+    expect(scheduler).toContain('MEDIA_SYNC_PERIODIC_WORK_NAME = "sms-backup-media-sync"');
+    expect(scheduler).toContain("OneTimeWorkRequestBuilder<MediaSyncWorker>");
+    expect(scheduler).toContain("PeriodicWorkRequestBuilder<MediaSyncWorker>(15, TimeUnit.MINUTES)");
+    expect(native).toContain("WorkScheduler.enqueueMediaSync");
+    expect(native).toContain("WorkScheduler.enqueueReconciliation");
+    expect(native).toContain("WorkScheduler.enqueueUpload");
+  });
+
   it("registers a protected manifest receiver for incoming SMS", () => {
     const manifest = read("AndroidManifest.xml");
     expect(manifest).toContain("SmsReceiver");
