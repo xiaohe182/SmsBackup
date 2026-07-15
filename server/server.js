@@ -3,8 +3,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
 import { TextSmsStore } from "./sms-store.js";
+import { formatSmsMarkdown } from "./markdown-export.js";
 
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+const DEFAULT_ACCESS_TOKEN = "88888888";
 const REQUIRED_STRING_FIELDS = [
   "recordId",
   "deviceId",
@@ -24,6 +26,27 @@ function sendJson(response, statusCode, value) {
     "cache-control": "no-store",
   });
   response.end(body);
+}
+
+function sendMarkdown(response, markdown) {
+  response.writeHead(200, {
+    "content-type": "text/markdown; charset=utf-8",
+    "content-disposition": 'attachment; filename="sms-backup.md"',
+    "content-length": Buffer.byteLength(markdown),
+    "cache-control": "no-store",
+  });
+  response.end(markdown);
+}
+
+function hasValidBearerToken(request, accessToken) {
+  return request.headers.authorization === `Bearer ${accessToken}`;
+}
+
+function parseUnsignedInteger(value, fallback) {
+  if (value === null) return fallback;
+  if (!/^\d+$/u.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 function readRequestBody(request, maxBodyBytes) {
@@ -58,7 +81,11 @@ function isValidSmsRecord(value) {
   if (!REQUIRED_STRING_FIELDS.every((field) => typeof value[field] === "string")) {
     return false;
   }
-  if (!value.recordId || !Number.isFinite(value.receivedAt)) return false;
+  if (
+    !value.recordId ||
+    !Number.isSafeInteger(value.receivedAt) ||
+    value.receivedAt < 0
+  ) return false;
   if (value.direction !== "inbox" && value.direction !== "sent") return false;
   return value.simSubscriptionId === null || Number.isInteger(value.simSubscriptionId);
 }
@@ -66,9 +93,13 @@ function isValidSmsRecord(value) {
 export async function createSmsServer({
   dataFile = join(dirname(fileURLToPath(import.meta.url)), "data", "sms-records.txt"),
   maxBodyBytes = DEFAULT_MAX_BODY_BYTES,
+  accessToken = process.env.SMS_BACKUP_TOKEN || DEFAULT_ACCESS_TOKEN,
 } = {}) {
   if (!Number.isInteger(maxBodyBytes) || maxBodyBytes < 1) {
     throw new TypeError("maxBodyBytes must be a positive integer");
+  }
+  if (typeof accessToken !== "string" || !accessToken) {
+    throw new TypeError("accessToken must be a non-empty string");
   }
 
   const store = new TextSmsStore(resolve(dataFile));
@@ -83,8 +114,52 @@ export async function createSmsServer({
         return;
       }
 
-      if (request.method !== "POST" || url.pathname !== "/api/sms") {
+      const isSmsPost = request.method === "POST" && url.pathname === "/api/sms";
+      const isSmsList = request.method === "GET" && url.pathname === "/api/sms";
+      const isMarkdownExport = request.method === "GET" &&
+        url.pathname === "/api/sms/export.md";
+
+      if (!isSmsPost && !isSmsList && !isMarkdownExport) {
         sendJson(response, 404, { ok: false, error: "not_found" });
+        return;
+      }
+
+      if (!hasValidBearerToken(request, accessToken)) {
+        response.setHeader("www-authenticate", "Bearer");
+        sendJson(response, 401, { ok: false, error: "unauthorized" });
+        return;
+      }
+
+      if (isSmsList) {
+        const limit = parseUnsignedInteger(url.searchParams.get("limit"), 50);
+        const offset = parseUnsignedInteger(url.searchParams.get("offset"), 0);
+        if (limit === null || limit < 1 || limit > 100 || offset === null) {
+          sendJson(response, 400, { ok: false, error: "invalid_pagination" });
+          return;
+        }
+        const direction = url.searchParams.get("direction") ?? "";
+        if (direction && direction !== "inbox" && direction !== "sent") {
+          sendJson(response, 400, { ok: false, error: "invalid_direction" });
+          return;
+        }
+        const deviceId = url.searchParams.get("deviceId") ?? "";
+        const result = store.query({ limit, offset, deviceId, direction });
+        sendJson(response, 200, {
+          items: result.items,
+          offset,
+          limit,
+          totalCount: result.totalCount,
+          hasMore: offset + result.items.length < result.totalCount,
+        });
+        return;
+      }
+
+      if (isMarkdownExport) {
+        const archive = store.query({
+          limit: Number.MAX_SAFE_INTEGER,
+          offset: 0,
+        });
+        sendMarkdown(response, formatSmsMarkdown(archive.items));
         return;
       }
 

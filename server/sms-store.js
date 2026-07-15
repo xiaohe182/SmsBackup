@@ -5,6 +5,7 @@ export class TextSmsStore {
   constructor(filePath) {
     this.filePath = filePath;
     this.recordIds = new Set();
+    this.records = [];
     this.writeQueue = Promise.resolve();
   }
 
@@ -17,8 +18,14 @@ export class TextSmsStore {
       if (!line.trim()) continue;
       try {
         const record = JSON.parse(line);
-        if (typeof record.recordId === "string" && record.recordId) {
+        if (
+          record &&
+          typeof record === "object" &&
+          typeof record.recordId === "string" &&
+          record.recordId
+        ) {
           this.recordIds.add(record.recordId);
+          this.records.push(record);
         }
       } catch {
         // Keep readable historical lines, but ignore malformed ones for indexing.
@@ -34,10 +41,29 @@ export class TextSmsStore {
 
       await appendFile(this.filePath, `${JSON.stringify(record)}\n`, "utf8");
       this.recordIds.add(record.recordId);
+      this.records.push(record);
       return true;
     });
 
     this.writeQueue = operation.catch(() => undefined);
     return operation;
+  }
+
+  query({ limit, offset, deviceId = "", direction = "" }) {
+    const newestFirst = this.records
+      .filter((record) => (
+        (!deviceId || record.deviceId === deviceId) &&
+        (!direction || record.direction === direction)
+      ))
+      .slice()
+      .reverse();
+
+    return {
+      // 返回浅拷贝，避免路由层意外修改内存索引中的原始归档记录。
+      items: newestFirst
+        .slice(offset, offset + limit)
+        .map((record) => ({ ...record })),
+      totalCount: newestFirst.length,
+    };
   }
 }

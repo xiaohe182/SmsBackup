@@ -6,6 +6,8 @@ import test from "node:test";
 
 import { createSmsServer } from "../server.js";
 
+const TEST_TOKEN = "test-token";
+
 const VALID_RECORD = {
   recordId: "device-1:42:inbox",
   deviceId: "device-1",
@@ -19,7 +21,10 @@ const VALID_RECORD = {
 };
 
 async function startServer(options = {}) {
-  const server = await createSmsServer(options);
+  const server = await createSmsServer({
+    accessToken: TEST_TOKEN,
+    ...options,
+  });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", resolve);
@@ -39,6 +44,7 @@ async function postSms(baseUrl, record = VALID_RECORD, headers = {}) {
     headers: {
       "content-type": "application/json",
       "idempotency-key": record.recordId,
+      authorization: `Bearer ${TEST_TOKEN}`,
       ...headers,
     },
     body: JSON.stringify(record),
@@ -106,16 +112,26 @@ test("rejects invalid JSON, invalid records, and mismatched idempotency keys", a
 
   const invalidJson = await fetch(`${app.baseUrl}/api/sms`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${TEST_TOKEN}`,
+    },
     body: "{not-json",
   });
   const invalidRecord = await postSms(app.baseUrl, { ...VALID_RECORD, sender: 10086 });
+  const invalidTimestamp = await postSms(app.baseUrl, {
+    ...VALID_RECORD,
+    recordId: "device-1:invalid-time:inbox",
+    sourceId: "invalid-time",
+    receivedAt: Number.MAX_VALUE,
+  });
   const mismatchedKey = await postSms(app.baseUrl, VALID_RECORD, {
     "idempotency-key": "some-other-record",
   });
 
   assert.equal(invalidJson.status, 400);
   assert.equal(invalidRecord.status, 400);
+  assert.equal(invalidTimestamp.status, 400);
   assert.equal(mismatchedKey.status, 400);
 });
 
@@ -134,4 +150,98 @@ test("rejects request bodies above the configured limit", async (t) => {
   });
 
   assert.equal(response.status, 413);
+});
+
+test("rejects missing or incorrect Bearer tokens", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "sms-server-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const app = await startServer({ dataFile: join(directory, "sms.txt") });
+  t.after(app.close);
+
+  const missing = await postSms(app.baseUrl, VALID_RECORD, { authorization: "" });
+  const wrong = await postSms(app.baseUrl, VALID_RECORD, {
+    authorization: "Bearer wrong",
+  });
+
+  assert.equal(missing.status, 401);
+  assert.deepEqual(await missing.json(), { ok: false, error: "unauthorized" });
+  assert.equal(wrong.status, 401);
+  assert.deepEqual(await wrong.json(), { ok: false, error: "unauthorized" });
+});
+
+test("returns newest-first paged TXT records with filters", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "sms-server-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const app = await startServer({ dataFile: join(directory, "sms.txt") });
+  t.after(app.close);
+
+  await postSms(app.baseUrl, VALID_RECORD);
+  await postSms(app.baseUrl, {
+    ...VALID_RECORD,
+    recordId: "device-2:43:sent",
+    deviceId: "device-2",
+    sourceId: "43",
+    direction: "sent",
+    receivedAt: VALID_RECORD.receivedAt + 1,
+  });
+
+  const response = await fetch(
+    `${app.baseUrl}/api/sms?limit=1&offset=0&direction=sent`,
+    { headers: { authorization: `Bearer ${TEST_TOKEN}` } },
+  );
+  const result = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].recordId, "device-2:43:sent");
+  assert.deepEqual(
+    {
+      offset: result.offset,
+      limit: result.limit,
+      totalCount: result.totalCount,
+      hasMore: result.hasMore,
+    },
+    { offset: 0, limit: 1, totalCount: 1, hasMore: false },
+  );
+});
+
+test("validates TXT paging and direction filters", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "sms-server-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const app = await startServer({ dataFile: join(directory, "sms.txt") });
+  t.after(app.close);
+  const headers = { authorization: `Bearer ${TEST_TOKEN}` };
+
+  const zeroLimit = await fetch(`${app.baseUrl}/api/sms?limit=0`, { headers });
+  const tooLarge = await fetch(`${app.baseUrl}/api/sms?limit=101`, { headers });
+  const badOffset = await fetch(`${app.baseUrl}/api/sms?offset=-1`, { headers });
+  const badDirection = await fetch(`${app.baseUrl}/api/sms?direction=draft`, { headers });
+
+  assert.equal(zeroLimit.status, 400);
+  assert.equal(tooLarge.status, 400);
+  assert.equal(badOffset.status, 400);
+  assert.equal(badDirection.status, 400);
+});
+
+test("exports escaped UTF-8 Markdown", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "sms-server-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const app = await startServer({ dataFile: join(directory, "sms.txt") });
+  t.after(app.close);
+  await postSms(app.baseUrl, {
+    ...VALID_RECORD,
+    body: "第一行\n<敏感>&内容",
+  });
+
+  const response = await fetch(`${app.baseUrl}/api/sms/export.md`, {
+    headers: { authorization: `Bearer ${TEST_TOKEN}` },
+  });
+  const markdown = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/markdown/);
+  assert.match(response.headers.get("content-disposition"), /sms-backup\.md/);
+  assert.match(markdown, /第一行/);
+  assert.doesNotMatch(markdown, /<敏感>/);
+  assert.match(markdown, /&lt;敏感&gt;&amp;内容/);
 });
