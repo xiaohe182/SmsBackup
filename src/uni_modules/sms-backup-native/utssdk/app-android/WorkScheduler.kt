@@ -13,11 +13,22 @@ import java.util.concurrent.TimeUnit
 
 object WorkScheduler {
     private const val UPLOAD_WORK_NAME = "sms-backup-upload"
-    private const val RECONCILE_WORK_NAME = "sms-backup-reconcile"
+    private const val RECONCILE_NOW_WORK_NAME = "sms-backup-reconcile-now"
+    private const val RECONCILE_PERIODIC_WORK_NAME = "sms-backup-reconcile"
 
     fun initialize(context: Context) {
         scheduleReconciliation(context)
+        enqueueReconciliation(context)
         enqueueUpload(context)
+    }
+
+    fun enqueueReconciliation(context: Context) {
+        val request = OneTimeWorkRequestBuilder<SmsReconcileWorker>().build()
+        WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
+            RECONCILE_NOW_WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            request
+        )
     }
 
     fun enqueueUpload(context: Context) {
@@ -36,11 +47,12 @@ object WorkScheduler {
     }
 
     private fun scheduleReconciliation(context: Context) {
-        val request = PeriodicWorkRequestBuilder<SmsReconcileWorker>(24, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<SmsReconcileWorker>(15, TimeUnit.MINUTES)
             .build()
+        // UPDATE 会把旧版本的 24 小时任务原地升级，避免升级后同时存在两套周期任务。
         WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
-            RECONCILE_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
+            RECONCILE_PERIODIC_WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
     }

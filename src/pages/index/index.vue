@@ -4,14 +4,14 @@
       <view>
         <text class="eyebrow">SMS BACKUP</text>
         <text class="title">短信备份</text>
-        <text class="subtitle">授权后自动备份全部收发短信</text>
+        <text class="subtitle">授权一次后自动收集全部收发短信</text>
       </view>
       <view :class="['status-dot', status.permissionGranted ? 'online' : 'offline']" />
     </view>
 
     <view class="notice">
       <text class="notice-title">隐私说明</text>
-      <text class="notice-text">只有你主动授权后才读取短信。短信会先保存在本机队列，配置服务器后再上传。</text>
+      <text class="notice-text">只有你主动授权后才读取短信。授权一次后，收到短信会立即入队，已发送短信会由启动和周期任务自动补扫。</text>
     </view>
 
     <view class="stats-grid">
@@ -51,7 +51,7 @@
       同意并授权读取短信
     </button>
     <button v-else class="primary-button" :loading="busy" @click="scanAndSync">
-      扫描历史短信并同步
+      立即补扫收发短信
     </button>
 
     <view class="link-grid">
@@ -113,6 +113,7 @@ async function authorizeAndScan() {
       return;
     }
     const count = await smsBackupService.scanExistingMessages();
+    await smsBackupService.syncNow();
     uni.showToast({ title: `已处理 ${count} 条短信`, icon: "none" });
     await refreshStatus();
   } finally {

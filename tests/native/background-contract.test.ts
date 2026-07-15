@@ -49,11 +49,22 @@ describe("Android killed-process backup contract", () => {
     expect(worker).not.toContain("println(");
   });
 
-  it("reconciles the system provider every day", () => {
+  it("reconciles inbox and sent SMS immediately and every fifteen minutes", () => {
     const scheduler = read("WorkScheduler.kt");
-    const worker = read("SmsReconcileWorker.kt");
-    expect(scheduler).toContain("24, TimeUnit.HOURS");
-    expect(worker).toContain("scanExistingMessages");
-    expect(worker).toContain("enqueueUpload");
+    const repository = read("SmsRepository.kt");
+    expect(scheduler).toContain("enqueueReconciliation");
+    expect(scheduler).toContain("15, TimeUnit.MINUTES");
+    expect(scheduler).toContain("RECONCILE_NOW_WORK_NAME");
+    expect(repository).toContain("Telephony.Sms.MESSAGE_TYPE_INBOX");
+    expect(repository).toContain("Telephony.Sms.MESSAGE_TYPE_SENT");
+  });
+
+  it("restores background work after boot and app replacement", () => {
+    const manifest = read("AndroidManifest.xml");
+    const receiver = read("BootReceiver.kt");
+    expect(manifest).toContain("android.permission.RECEIVE_BOOT_COMPLETED");
+    expect(manifest).toContain("android.intent.action.BOOT_COMPLETED");
+    expect(manifest).toContain("android.intent.action.MY_PACKAGE_REPLACED");
+    expect(receiver).toContain("WorkScheduler.initialize");
   });
 });
