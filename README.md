@@ -5,17 +5,18 @@
 ## 已实现
 
 - Android 8.0（API 26）及以上。
-- 首次授权后扫描已有收件和发件短信。
+- 首次授权后自动扫描已有收件和发件短信，以后不需要再点击采集。
 - Manifest 静态 `SmsReceiver`，应用普通进程被回收后仍可由新短信唤醒。
 - SQLite 本地可靠队列；服务器成功确认前不删除待上传记录。
 - `recordId` 与内容指纹双重去重，避免广播和全量扫描重复上传。
-- WorkManager 网络恢复重试、指数退避及每日全量补漏。
+- WorkManager 网络恢复重试、指数退避、每次启动立即补漏及最短 15 分钟周期补漏。
+- `BOOT_COMPLETED` 与 `MY_PACKAGE_REPLACED` 恢复任务，手机重启或应用升级后继续自动补扫。
 - 不做广告、验证码或关键词过滤；淘宝、拼多多、退订、促销等短信同样进入备份队列。
 - 首页可进入“查看全部短信”，输入固定密码 `88888888` 后查看系统短信库中的完整记录。
 - 查看会话固定有效 10 分钟；覆盖收件、已发送、草稿、发件箱、失败、排队短信和彩信附件。
 - 会话列表使用系统联系人备注、号码标签与缩略头像；拒绝联系人权限时显示完整号码和统一默认头像，联系人数据不会上传。
 - 短信/彩信使用 40 条游标分页；相册使用 60 张分页、四页 LRU 缓存和视口虚拟网格，不会一次渲染一万张图片。
-- 可配置服务器地址、设备名称、同步开关和局域网 HTTP 开关。
+- 默认服务器为 `http://119.91.65.202:8787`，可配置访问令牌、设备名称、同步开关和 HTTP 开关。
 - 不隐藏应用、不绕过系统强行停止、不在普通日志输出短信正文。
 
 ## 目录
@@ -71,12 +72,13 @@ npm run build:app-plus
 
 ```powershell
 Set-Location D:\myFile\SmsBackup\server
+$env:SMS_BACKUP_TOKEN = "88888888"
 npm start
 ```
 
-默认监听 `0.0.0.0:8787`，短信写入 `server\data\sms-records.txt`，可直接用记事本打开。完整部署和局域网配置见 [`server/README.md`](server/README.md)。
+默认监听 `0.0.0.0:8787`，短信写入 `server\data\sms-records.txt`，可直接用记事本打开。服务端不使用数据库；Markdown 根据 TXT 实时生成。完整部署说明见 [`server/README.md`](server/README.md)。
 
-服务端提供两个接口：
+服务端提供以下接口：
 
 ### 健康检查
 
@@ -92,6 +94,7 @@ GET /api/health
 POST /api/sms
 Content-Type: application/json
 Idempotency-Key: <recordId>
+Authorization: Bearer 88888888
 ```
 
 ```json
@@ -110,9 +113,27 @@ Idempotency-Key: <recordId>
 
 后端应把 `recordId` 当作幂等键：重复提交返回成功，但不能重复写入记事本。
 
+### 分页读取与 Markdown 导出
+
+```http
+GET /api/sms?limit=50&offset=0&deviceId=&direction=
+Authorization: Bearer 88888888
+```
+
+```http
+GET /api/sms/export.md
+Authorization: Bearer 88888888
+```
+
+查询接口按最新记录优先返回，`direction` 支持 `inbox` 和 `sent`。默认令牌可以在 App 设置中修改，服务器使用 `SMS_BACKUP_TOKEN` 设置相同值。
+
+当前公网地址使用 HTTP，短信正文和令牌会以明文经过网络。它可以直接联调，但长期公网使用应配置 HTTPS 反向代理。
+
 ## 系统边界
 
-- 普通清理后台、系统内存回收和重启由 Receiver、SQLite 与 WorkManager 恢复。
+- 普通清理后台、系统内存回收和重启由 Receiver、Boot Receiver、SQLite 与 WorkManager 恢复。
+- 新收到的短信通过系统广播立即入队；收件和已发送短信都会在授权、启动、重启恢复与周期任务中补扫。
+- 非默认短信应用没有已发送短信广播；如果发送后在下一次补扫前立刻删除，应用无法保证捕获这条记录。
 - 用户在系统设置点击“强行停止”后，Android 禁止应用自行启动；必须再次手动打开 App。
 - 未配置服务器或服务器不可用时，短信只保留在本机应用私有 SQLite 队列。
 - 广告、验证码、服务通知和普通短信使用同一入队规则，不按内容跳过。
