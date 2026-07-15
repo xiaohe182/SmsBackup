@@ -180,5 +180,11 @@ describe("Android native SMS plugin contract", () => {
     expect(uts).toContain("android.permission.READ_MEDIA_VIDEO");
     expect(uts).toContain("android.permission.READ_MEDIA_VISUAL_USER_SELECTED");
     expect(uts).toContain("android.permission.READ_EXTERNAL_STORAGE");
+    const mediaPermissionRequest = uts.slice(
+      uts.indexOf("export function requestMediaPermissions"),
+      uts.indexOf("export function requestContactsPermission"),
+    );
+    expect(mediaPermissionRequest).toContain("allRight || granted.length > 0");
+    expect(mediaPermissionRequest).toContain("resolve(granted.length > 0)");
   });
 });

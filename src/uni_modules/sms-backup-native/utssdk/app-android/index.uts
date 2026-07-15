@@ -63,8 +63,9 @@ export function requestMediaPermissions(): Promise<boolean> {
     UTSAndroid.requestSystemPermission(
       activity,
       permissions,
-      (allRight: boolean, _granted: string[]) => resolve(allRight),
-      (_doNotAskAgain: boolean, _granted: string[]) => resolve(false)
+      // Android 14 的“选择照片和视频”不是全量授权，但仍是可用的受限权限。
+      (allRight: boolean, granted: string[]) => resolve(allRight || granted.length > 0),
+      (_doNotAskAgain: boolean, granted: string[]) => resolve(granted.length > 0)
     )
   })
 }
