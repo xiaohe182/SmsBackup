@@ -405,7 +405,7 @@ class SmsRepository(private val context: Context) {
             put("messages", messages)
             put("nextCursor", nextCursor ?: JSONObject.NULL)
             put("hasMore", hasMore)
-            put("totalCount", countSms(filter, threadId, address) + countMms(filter, threadId))
+            put("totalCount", countSms(filter, threadId, address) + countMms(filter, threadId, address))
         }
     }
 
@@ -675,8 +675,27 @@ class SmsRepository(private val context: Context) {
         return countRows(Telephony.Sms.CONTENT_URI, Telephony.Sms._ID, selection, args)
     }
 
-    private fun countMms(filter: String, threadId: Long?): Int {
+    private fun countMms(filter: String, threadId: Long?, address: String?): Int {
         val (selection, args) = mmsSelection(filter, threadId, null)
+        if (threadId == null && !address.isNullOrBlank()) {
+            var matched = 0
+            context.contentResolver.query(
+                Telephony.Mms.CONTENT_URI,
+                arrayOf("_id", "msg_box"),
+                selection,
+                args,
+                null
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndex("_id")
+                val boxIndex = cursor.getColumnIndex("msg_box")
+                while (cursor.moveToNext()) {
+                    val sourceId = nullableString(cursor, idIndex).orEmpty()
+                    val direction = mmsDirection(if (boxIndex >= 0) cursor.getInt(boxIndex) else 0)
+                    if (getMmsAddress(sourceId, direction) == address) matched += 1
+                }
+            }
+            return matched
+        }
         return countRows(Telephony.Mms.CONTENT_URI, "_id", selection, args)
     }
 
@@ -717,11 +736,13 @@ class SmsRepository(private val context: Context) {
                     .getStringArray(ContentResolver.EXTRA_HONORED_ARGS)
                     ?.toSet()
                     .orEmpty()
-                val limitHonored = honored.contains(ContentResolver.QUERY_ARG_LIMIT)
                 val offsetHonored = honored.contains(ContentResolver.QUERY_ARG_OFFSET)
                 if (offset > 0 && !offsetHonored) return@use null
-                // 未声明支持 limit 时仍手动截断；只要 offset 已生效，结果页就是可靠的。
-                galleryRows(cursor, 0, limit).also { if (!limitHonored) Unit }
+                if (!honored.contains(ContentResolver.QUERY_ARG_LIMIT)) {
+                    // 厂商未确认 limit 时由读取循环强制截断，仍只创建一页图片 JSON。
+                    return@use galleryRows(cursor, 0, limit)
+                }
+                galleryRows(cursor, 0, limit)
             }
         } catch (_: Exception) {
             null

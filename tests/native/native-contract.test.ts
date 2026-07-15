@@ -87,6 +87,17 @@ describe("Android native SMS plugin contract", () => {
     expect(repository).toContain("ContentResolver.EXTRA_HONORED_ARGS");
   });
 
+  it("keeps MMS fallback totals scoped to the selected address", () => {
+    const repository = read("SmsRepository.kt");
+    expect(repository).toContain("countMms(filter, threadId, address)");
+    expect(repository).toContain(
+      "if (threadId == null && !address.isNullOrBlank())",
+    );
+    expect(repository).toContain(
+      "getMmsAddress(sourceId, direction) == address",
+    );
+  });
+
   it("queues every unique SMS without blacklist filtering", () => {
     const repository = read("SmsRepository.kt");
     expect(repository).toContain("Telephony.Sms.CONTENT_URI");

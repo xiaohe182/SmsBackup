@@ -37,10 +37,30 @@ export type NativeMessageCursor = {
   sourceId: string
 }
 
+export type NativePagedViewerMessage = {
+  id: string,
+  sourceId: string,
+  threadId: number | null,
+  address: string,
+  body: string,
+  timestamp: number,
+  receivedAt: number,
+  sentAt: number | null,
+  type: number,
+  direction: string,
+  kind: string,
+  read: boolean,
+  seen: boolean,
+  status: number | null,
+  serviceCenter: string | null,
+  simSubscriptionId: number | null,
+  attachments: NativeMmsAttachment[]
+}
+
 export type NativeMessagePageResponse = {
   authorized: boolean,
   permissionGranted: boolean,
-  messages: NativeViewerMessage[],
+  messages: NativePagedViewerMessage[],
   nextCursor: NativeMessageCursor | null,
   hasMore: boolean,
   totalCount: number
