@@ -16,6 +16,7 @@ function message(id: string, timestamp: number): ViewerMessage {
     timestamp,
     receivedAt: timestamp,
     sentAt: null,
+    type: 1,
     direction: "inbox",
     kind: "sms",
     attachments: [],

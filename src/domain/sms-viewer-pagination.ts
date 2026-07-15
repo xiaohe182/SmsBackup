@@ -33,6 +33,7 @@ export interface ViewerMessage {
   timestamp: number;
   receivedAt: number;
   sentAt: number | null;
+  type: number;
   direction: ViewerMessageDirection;
   kind: "sms" | "mms";
   attachments: ViewerAttachment[];

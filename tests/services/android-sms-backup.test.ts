@@ -8,6 +8,8 @@ function createNative(overrides: Partial<NativeSmsModule> = {}): NativeSmsModule
     initialize: vi.fn(),
     getPermissionState: vi.fn(() => '{"allGranted":true}'),
     requestPermissions: vi.fn(async () => true),
+    requestMediaPermissions: vi.fn(async () => true),
+    requestContactsPermission: vi.fn(async () => true),
     scanExistingMessages: vi.fn(async () => 7),
     getAllMessages: vi.fn(async () =>
       JSON.stringify({
@@ -30,6 +32,72 @@ function createNative(overrides: Partial<NativeSmsModule> = {}): NativeSmsModule
             simSubscriptionId: 1,
           },
         ],
+      }),
+    ),
+    getAllMmsMessages: vi.fn(async () =>
+      '{"authorized":true,"permissionGranted":true,"messages":[]}',
+    ),
+    getGalleryPhotos: vi.fn(async () =>
+      '{"authorized":true,"permissionGranted":true,"photos":[]}',
+    ),
+    getConversationSummaries: vi.fn(async () =>
+      JSON.stringify({
+        authorized: true,
+        permissionGranted: true,
+        conversations: [
+          {
+            key: "thread:7",
+            threadId: 7,
+            address: "13800138000",
+            contact: {
+              key: "contact:13800138000",
+              displayName: "家人备注",
+              phoneNumber: "13800138000",
+              phoneLabel: "手机",
+              avatarUri: "content://contacts/1/photo",
+              isResolved: true,
+            },
+            preview: "晚上回家吃饭",
+            latestAt: 1783900800000,
+            messageCount: 12,
+            unreadCount: 1,
+          },
+        ],
+      }),
+    ),
+    getMessagePage: vi.fn(async () =>
+      JSON.stringify({
+        authorized: true,
+        permissionGranted: true,
+        messages: [],
+        nextCursor: null,
+        hasMore: false,
+        totalCount: 12,
+      }),
+    ),
+    getGalleryAlbums: vi.fn(async () =>
+      JSON.stringify({
+        authorized: true,
+        permissionGranted: true,
+        albums: [{ id: "camera", name: "相机", photoCount: 10_000, coverUri: null }],
+      }),
+    ),
+    getGalleryPage: vi.fn(async () =>
+      JSON.stringify({
+        authorized: true,
+        permissionGranted: true,
+        albumId: "camera",
+        offset: 0,
+        totalCount: 10_000,
+        photos: Array.from({ length: 80 }, (_, index) => ({
+          id: String(index),
+          uri: `content://media/${index}`,
+          albumId: "camera",
+          albumName: "相机",
+          displayName: `IMG_${index}.jpg`,
+          takenAt: 1783900800000 - index,
+          mimeType: "image/jpeg",
+        })),
       }),
     ),
     getBackupStatus: vi.fn(
@@ -122,5 +190,21 @@ describe("Android SMS backup service", () => {
       permissionGranted: true,
       messages: [],
     });
+  });
+
+  it("parses contact-aware conversations and bounded gallery pages", async () => {
+    const native = createNative();
+    const service = createAndroidSmsBackupService(native);
+
+    const summaries = await service.listConversationSummaries("88888888");
+    expect(summaries.conversations[0]).toMatchObject({
+      key: "thread:7",
+      contact: { displayName: "家人备注", phoneNumber: "13800138000" },
+    });
+
+    const page = await service.listGalleryPage("88888888", "camera", 0, 60);
+    expect(page.totalCount).toBe(10_000);
+    expect(page.photos).toHaveLength(60);
+    expect(native.getGalleryPage).toHaveBeenCalledWith("88888888", "camera", 0, 60);
   });
 });
