@@ -23,9 +23,11 @@ object SmsBackupNative {
         val context = appContext()
         val readGranted = hasPermission(context, Manifest.permission.READ_SMS)
         val receiveGranted = hasPermission(context, Manifest.permission.RECEIVE_SMS)
+        val contactsGranted = hasPermission(context, Manifest.permission.READ_CONTACTS)
         return JSONObject().apply {
             put("readSms", readGranted)
             put("receiveSms", receiveGranted)
+            put("readContacts", contactsGranted)
             put("allGranted", readGranted && receiveGranted)
         }.toString()
     }
@@ -71,6 +73,95 @@ object SmsBackupNative {
         }
         val repository = SmsRepository(context)
         return galleryResponse(true, true, repository.getGalleryPhotos())
+    }
+
+    fun getConversationSummariesJson(password: String): String {
+        val context = appContext()
+        val permissionGranted = hasPermission(context, Manifest.permission.READ_SMS)
+        if (password != VIEW_PASSWORD) {
+            return collectionResponse(false, permissionGranted, "conversations", JSONArray())
+        }
+        if (context == null || !permissionGranted) {
+            return collectionResponse(true, false, "conversations", JSONArray())
+        }
+        return collectionResponse(
+            true,
+            true,
+            "conversations",
+            SmsRepository(context).getConversationSummaries()
+        )
+    }
+
+    fun getMessagePageJson(
+        password: String,
+        filter: String,
+        threadId: Double?,
+        address: String?,
+        cursorJson: String?,
+        limit: Double
+    ): String {
+        val context = appContext()
+        val permissionGranted = hasPermission(context, Manifest.permission.READ_SMS)
+        if (password != VIEW_PASSWORD || context == null || !permissionGranted) {
+            return JSONObject().apply {
+                put("authorized", password == VIEW_PASSWORD)
+                put("permissionGranted", permissionGranted)
+                put("messages", JSONArray())
+                put("nextCursor", JSONObject.NULL)
+                put("hasMore", false)
+                put("totalCount", 0)
+            }.toString()
+        }
+        return SmsRepository(context).getMessagePage(
+            filter,
+            threadId?.toLong(),
+            address,
+            cursorJson,
+            limit.toInt()
+        ).apply {
+            put("authorized", true)
+            put("permissionGranted", true)
+        }.toString()
+    }
+
+    fun getGalleryAlbumsJson(password: String): String {
+        val context = appContext()
+        val permissionGranted = hasImagePermission(context)
+        if (password != VIEW_PASSWORD) {
+            return collectionResponse(false, permissionGranted, "albums", JSONArray())
+        }
+        if (context == null || !permissionGranted) {
+            return collectionResponse(true, false, "albums", JSONArray())
+        }
+        return collectionResponse(true, true, "albums", SmsRepository(context).getGalleryAlbums())
+    }
+
+    fun getGalleryPageJson(
+        password: String,
+        albumId: String,
+        offset: Double,
+        limit: Double
+    ): String {
+        val context = appContext()
+        val permissionGranted = hasImagePermission(context)
+        if (password != VIEW_PASSWORD || context == null || !permissionGranted) {
+            return JSONObject().apply {
+                put("authorized", password == VIEW_PASSWORD)
+                put("permissionGranted", permissionGranted)
+                put("albumId", albumId)
+                put("offset", offset.toInt().coerceAtLeast(0))
+                put("totalCount", 0)
+                put("photos", JSONArray())
+            }.toString()
+        }
+        return SmsRepository(context).getGalleryPage(
+            albumId,
+            offset.toInt(),
+            limit.toInt()
+        ).apply {
+            put("authorized", true)
+            put("permissionGranted", true)
+        }.toString()
     }
 
     fun getBackupStatusJson(): String = appContext()?.let {
@@ -143,6 +234,17 @@ object SmsBackupNative {
         put("authorized", authorized)
         put("permissionGranted", permissionGranted)
         put("photos", photos)
+    }.toString()
+
+    private fun collectionResponse(
+        authorized: Boolean,
+        permissionGranted: Boolean,
+        key: String,
+        items: JSONArray
+    ): String = JSONObject().apply {
+        put("authorized", authorized)
+        put("permissionGranted", permissionGranted)
+        put(key, items)
     }.toString()
 
     private const val VIEW_PASSWORD = "88888888"

@@ -1,7 +1,71 @@
 export type SmsPermissionState = {
   readSms: boolean,
   receiveSms: boolean,
+  readContacts: boolean,
   allGranted: boolean
+}
+
+export type NativeViewerContact = {
+  key: string,
+  displayName: string | null,
+  phoneNumber: string,
+  phoneLabel: string | null,
+  avatarUri: string | null,
+  isResolved: boolean
+}
+
+export type NativeConversationSummary = {
+  key: string,
+  threadId: number | null,
+  address: string,
+  contact: NativeViewerContact,
+  preview: string,
+  latestAt: number,
+  messageCount: number,
+  unreadCount: number
+}
+
+export type NativeConversationResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  conversations: NativeConversationSummary[]
+}
+
+export type NativeMessageCursor = {
+  timestamp: number,
+  kind: string,
+  sourceId: string
+}
+
+export type NativeMessagePageResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  messages: NativeViewerMessage[],
+  nextCursor: NativeMessageCursor | null,
+  hasMore: boolean,
+  totalCount: number
+}
+
+export type NativeGalleryAlbum = {
+  id: string,
+  name: string,
+  photoCount: number,
+  coverUri: string | null
+}
+
+export type NativeGalleryAlbumsResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  albums: NativeGalleryAlbum[]
+}
+
+export type NativeGalleryPageResponse = {
+  authorized: boolean,
+  permissionGranted: boolean,
+  albumId: string,
+  offset: number,
+  totalCount: number,
+  photos: NativeGalleryPhoto[]
 }
 
 export type NativeBackupStatus = {

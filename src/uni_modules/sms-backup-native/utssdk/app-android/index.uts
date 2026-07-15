@@ -58,6 +58,27 @@ export function requestMediaPermissions(): Promise<boolean> {
   })
 }
 
+export function requestContactsPermission(): Promise<boolean> {
+  return new Promise<boolean>((resolve, _reject) => {
+    const activity = UTSAndroid.getUniActivity()
+    if (activity == null) {
+      resolve(false)
+      return
+    }
+    const permissions = ['android.permission.READ_CONTACTS']
+    if (UTSAndroid.getSystemPermissionDenied(activity, permissions).isEmpty()) {
+      resolve(true)
+      return
+    }
+    UTSAndroid.requestSystemPermission(
+      activity,
+      permissions,
+      (allRight: boolean, _granted: string[]) => resolve(allRight),
+      (_doNotAskAgain: boolean, _granted: string[]) => resolve(false)
+    )
+  })
+}
+
 export function scanExistingMessages(): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     UTSAndroid.getDispatcher('io').async((_data: any | null) => {
@@ -99,6 +120,73 @@ export function getGalleryPhotos(password: string): Promise<string> {
     UTSAndroid.getDispatcher('io').async((_data: any | null) => {
       try {
         resolve(SmsBackupNative.getGalleryPhotosJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getConversationSummaries(password: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getConversationSummariesJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getMessagePage(
+  password: string,
+  filter: string,
+  threadId: number | null,
+  address: string | null,
+  cursorJson: string | null,
+  limit: number
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getMessagePageJson(
+          password,
+          filter,
+          threadId,
+          address,
+          cursorJson,
+          limit
+        ))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getGalleryAlbums(password: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getGalleryAlbumsJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getGalleryPage(
+  password: string,
+  albumId: string,
+  offset: number,
+  limit: number
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getGalleryPageJson(password, albumId, offset, limit))
       } catch (error) {
         reject(error)
       }

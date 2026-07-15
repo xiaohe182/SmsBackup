@@ -11,7 +11,7 @@ function read(relativePath: string): string {
 }
 
 describe("Android native SMS plugin contract", () => {
-  it("declares required SMS, network, and image-reading permissions", () => {
+  it("declares required SMS, contacts, network, and image-reading permissions", () => {
     const manifest = read("AndroidManifest.xml");
     expect(manifest).toContain("android.permission.READ_SMS");
     expect(manifest).toContain("android.permission.RECEIVE_SMS");
@@ -19,6 +19,7 @@ describe("Android native SMS plugin contract", () => {
     expect(manifest).toContain("android.permission.ACCESS_NETWORK_STATE");
     expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
     expect(manifest).toContain("android.permission.READ_EXTERNAL_STORAGE");
+    expect(manifest).toContain("android.permission.READ_CONTACTS");
   });
 
   it("supports Android 8 and declares compatible AndroidX dependencies", () => {
@@ -34,10 +35,15 @@ describe("Android native SMS plugin contract", () => {
       "getPermissionState",
       "requestPermissions",
       "requestMediaPermissions",
+      "requestContactsPermission",
       "scanExistingMessages",
       "getAllMessages",
       "getAllMmsMessages",
       "getGalleryPhotos",
+      "getConversationSummaries",
+      "getMessagePage",
+      "getGalleryAlbums",
+      "getGalleryPage",
       "getBackupStatus",
       "saveNativeSettings",
       "syncNow",
@@ -58,6 +64,27 @@ describe("Android native SMS plugin contract", () => {
     expect(database).toContain("DATABASE_VERSION = 4");
     expect(database).toContain("DROP TABLE IF EXISTS filtered_records");
     expect(database).not.toContain("SELECT 1 FROM filtered_records");
+  });
+
+  it("resolves contact identity and clamps every native Provider page", () => {
+    const contacts = read("SmsContactResolver.kt");
+    const repository = read("SmsRepository.kt");
+    for (const field of [
+      "Phone.NUMBER",
+      "Phone.NORMALIZED_NUMBER",
+      "Phone.DISPLAY_NAME",
+      "Phone.TYPE",
+      "Phone.LABEL",
+      "Phone.PHOTO_THUMBNAIL_URI",
+    ]) {
+      expect(contacts).toContain(field);
+    }
+    expect(contacts).toContain("PhoneNumberUtils.normalizeNumber");
+    expect(repository).toContain("coerceIn(1, 100)");
+    expect(repository).toContain("coerceIn(1, 120)");
+    expect(repository).toContain("ContentResolver.QUERY_ARG_LIMIT");
+    expect(repository).toContain("ContentResolver.QUERY_ARG_OFFSET");
+    expect(repository).toContain("ContentResolver.EXTRA_HONORED_ARGS");
   });
 
   it("queues every unique SMS without blacklist filtering", () => {
