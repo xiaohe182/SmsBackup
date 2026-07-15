@@ -73,6 +73,7 @@ class SmsUploadWorker(
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
             connection.setRequestProperty("Idempotency-Key", record.recordId)
+            connection.setRequestProperty("Authorization", "Bearer ${settings.apiToken}")
             connection.outputStream.use { output ->
                 output.write(payload.toByteArray(Charsets.UTF_8))
             }
@@ -84,6 +85,7 @@ class SmsUploadWorker(
 
     private data class UploadSettings(
         val serverUrl: String,
+        val apiToken: String,
         val deviceName: String,
         val syncEnabled: Boolean,
         val allowInsecureHttp: Boolean
@@ -93,12 +95,14 @@ class SmsUploadWorker(
                 val value = JSONObject(json)
                 UploadSettings(
                     serverUrl = value.optString("serverUrl").trimEnd('/'),
+                    apiToken = value.optString("apiToken", "88888888")
+                        .ifBlank { "88888888" },
                     deviceName = value.optString("deviceName", "家人手机"),
                     syncEnabled = value.optBoolean("syncEnabled", true),
                     allowInsecureHttp = value.optBoolean("allowInsecureHttp", false)
                 )
             } catch (_: Exception) {
-                UploadSettings("", "家人手机", true, false)
+                UploadSettings("", "88888888", "家人手机", true, false)
             }
         }
     }

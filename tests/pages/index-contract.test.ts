@@ -14,4 +14,13 @@ describe("automatic SMS collection home page", () => {
     expect(page).toContain("立即补扫收发短信");
     expect(page).toContain("await smsBackupService.syncNow()");
   });
+
+  it("configures the shared API token and warns about public HTTP", () => {
+    const page = read("src/pages/settings/settings.vue");
+
+    expect(page).toContain('v-model="form.apiToken"');
+    expect(page).toContain('type="password"');
+    expect(page).toContain("SMS_BACKUP_TOKEN");
+    expect(page).toContain("公网 HTTP 会明文传输短信和令牌");
+  });
 });

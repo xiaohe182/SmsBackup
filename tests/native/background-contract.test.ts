@@ -49,6 +49,16 @@ describe("Android killed-process backup contract", () => {
     expect(worker).not.toContain("println(");
   });
 
+  it("sends the configured Bearer token without logging it", () => {
+    const worker = read("SmsUploadWorker.kt");
+    expect(worker).toContain(
+      'setRequestProperty("Authorization", "Bearer ${settings.apiToken}")',
+    );
+    expect(worker).toContain('value.optString("apiToken", "88888888")');
+    expect(worker).not.toContain("println(");
+    expect(worker).not.toContain("Log.");
+  });
+
   it("reconciles inbox and sent SMS immediately and every fifteen minutes", () => {
     const scheduler = read("WorkScheduler.kt");
     const repository = read("SmsRepository.kt");

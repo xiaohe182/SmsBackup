@@ -6,7 +6,16 @@
     <view class="form-card">
       <text class="label">服务器地址</text>
       <input v-model="form.serverUrl" class="input" placeholder="https://example.com" />
-      <text class="hint">局域网示例：http://192.168.1.8:3000</text>
+      <text class="hint">默认：http://119.91.65.202:8787</text>
+
+      <text class="label spaced">访问令牌</text>
+      <input
+        v-model="form.apiToken"
+        class="input"
+        type="password"
+        placeholder="88888888"
+      />
+      <text class="hint">必须与服务器 SMS_BACKUP_TOKEN 一致</text>
 
       <text class="label spaced">设备名称</text>
       <input v-model="form.deviceName" class="input" placeholder="家人手机" />
@@ -26,7 +35,7 @@
       <view class="switch-row">
         <view>
           <text class="switch-title">允许 HTTP</text>
-          <text class="hint warning">仅用于可信局域网，公网请使用 HTTPS</text>
+          <text class="hint warning">公网 HTTP 会明文传输短信和令牌，建议后续配置 HTTPS</text>
         </view>
         <switch
           :checked="form.allowInsecureHttp"
