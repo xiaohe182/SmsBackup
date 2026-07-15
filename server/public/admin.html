@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>SmsBackup 服务器控制台</title>
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">PRIVATE FAMILY ARCHIVE</p>
+        <h1>SmsBackup 服务器控制台</h1>
+        <p class="subtitle">集中管理短信、相册图片与视频同步。时间范围由服务器动态下发。</p>
+      </div>
+      <button id="logoutButton" class="button ghost hidden" type="button">退出</button>
+    </header>
+
+    <section id="loginPanel" class="panel login-panel">
+      <div>
+        <p class="section-kicker">受保护访问</p>
+        <h2>输入管理密码</h2>
+        <p class="muted">默认密码为 88888888。公网部署建议启用 HTTPS。</p>
+      </div>
+      <form id="loginForm" class="stack">
+        <label for="password">管理密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="button primary" type="submit">进入控制台</button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+    </section>
+
+    <div id="dashboard" class="hidden">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="section-kicker">SYNC POLICY</p>
+            <h2>服务器同步策略</h2>
+          </div>
+          <span id="settingsSaved" class="success"></span>
+        </div>
+        <form id="settingsForm" class="settings-grid">
+          <label>回溯小时数
+            <input id="mediaLookbackHours" name="mediaLookbackHours" type="number" min="1" max="87600" required>
+            <small>168 小时等于最近 7 天，修改后下一条指令立即生效。</small>
+          </label>
+          <label>自动周期（分钟）
+            <input id="autoSyncIntervalMinutes" name="autoSyncIntervalMinutes" type="number" min="15" max="10080" required>
+            <small>Android 后台轮询最低约 15 分钟。</small>
+          </label>
+          <label class="check"><input id="autoSyncEnabled" type="checkbox"> 自动创建同步指令</label>
+          <label class="check"><input id="wifiOnly" type="checkbox"> 相册仅 Wi-Fi 上传</label>
+          <button class="button primary" type="submit">保存策略</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div><p class="section-kicker">DEVICES</p><h2>设备与同步状态</h2></div>
+          <button id="refreshButton" class="button ghost" type="button">刷新</button>
+        </div>
+        <div id="deviceList" class="device-list"></div>
+        <p id="deviceEmpty" class="empty">等待手机首次连接服务器。</p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div><p class="section-kicker">MEDIA</p><h2>服务器相册</h2></div>
+          <div class="filters">
+            <select id="mediaType"><option value="">全部</option><option value="image">图片</option><option value="video">视频</option></select>
+            <button id="loadMediaButton" class="button ghost" type="button">刷新媒体</button>
+          </div>
+        </div>
+        <div id="mediaGrid" class="media-grid"></div>
+        <button id="moreMediaButton" class="button ghost hidden" type="button">加载更多</button>
+        <p id="mediaEmpty" class="empty">服务器暂时没有媒体文件。</p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div><p class="section-kicker">MESSAGES</p><h2>最近短信</h2></div>
+          <button id="loadSmsButton" class="button ghost" type="button">刷新短信</button>
+        </div>
+        <div id="smsList" class="sms-list"></div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

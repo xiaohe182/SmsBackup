@@ -98,6 +98,10 @@ export class SyncRequestStore {
       .map((request) => this.snapshot(request.id));
   }
 
+  get(requestId) {
+    return this.snapshot(requestId);
+  }
+
   apply(event) {
     if (event.type === "created") {
       this.requests.set(event.requestId, {
