@@ -77,3 +77,40 @@ export type NativeGalleryResponse = {
   permissionGranted: boolean,
   photos: NativeGalleryPhoto[]
 }
+
+export type NativeLocationPoint = {
+  id: string,
+  sessionId: string,
+  capturedAt: number,
+  latitude: number,
+  longitude: number,
+  accuracy: number,
+  altitude: number | null,
+  speed: number | null,
+  bearing: number | null,
+  provider: string
+}
+
+export type NativeLocationStatus = {
+  authorized: boolean,
+  available: boolean,
+  permissionGranted: boolean,
+  precisePermissionGranted: boolean,
+  notificationPermissionGranted: boolean,
+  locationEnabled: boolean,
+  tracking: boolean,
+  sampleIntervalMs: number,
+  pointCount: number,
+  currentSessionId: string | null,
+  startedAt: number | null,
+  lastPoint: NativeLocationPoint | null,
+  message: string
+}
+
+export type NativeDeviceContact = {
+  contactId: string,
+  displayName: string,
+  phoneNumber: string,
+  normalizedNumber: string | null,
+  photoUri: string | null
+}

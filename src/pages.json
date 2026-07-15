@@ -19,6 +19,12 @@
       }
     },
     {
+      "path": "pages/device/device",
+      "style": {
+        "navigationBarTitleText": "设备与轨迹"
+      }
+    },
+    {
       "path": "pages/blacklist/blacklist",
       "style": {
         "navigationBarTitleText": "黑名单"

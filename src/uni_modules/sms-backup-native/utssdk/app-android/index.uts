@@ -106,6 +106,98 @@ export function getGalleryPhotos(password: string): Promise<string> {
   })
 }
 
+export function getLocationStatus(password: string): string {
+  return SmsBackupNative.getLocationStatusJson(password)
+}
+
+export function requestLocationPermissions(): Promise<boolean> {
+  return new Promise<boolean>((resolve, _reject) => {
+    const activity = UTSAndroid.getUniActivity()
+    if (activity == null) {
+      resolve(false)
+      return
+    }
+    const coarsePermission = ['android.permission.ACCESS_COARSE_LOCATION']
+    const permissions = [
+      'android.permission.ACCESS_COARSE_LOCATION',
+      'android.permission.ACCESS_FINE_LOCATION'
+    ]
+    if (UTSAndroid.getSystemPermissionDenied(activity, coarsePermission).isEmpty()) {
+      resolve(true)
+      return
+    }
+    UTSAndroid.requestSystemPermission(
+      activity,
+      permissions,
+      (_allRight: boolean, _granted: string[]) => {
+        resolve(UTSAndroid.getSystemPermissionDenied(activity, coarsePermission).isEmpty())
+      },
+      (_doNotAskAgain: boolean, _granted: string[]) => {
+        resolve(UTSAndroid.getSystemPermissionDenied(activity, coarsePermission).isEmpty())
+      }
+    )
+  })
+}
+
+export function requestNotificationPermission(): Promise<boolean> {
+  if (Build.VERSION.SDK_INT < 33) {
+    return Promise.resolve(true)
+  }
+  return requestAndroidPermissions(['android.permission.POST_NOTIFICATIONS'])
+}
+
+export function startLocationTracking(password: string): boolean {
+  return SmsBackupNative.startLocationTracking(password)
+}
+
+export function stopLocationTracking(): void {
+  SmsBackupNative.stopLocationTracking()
+}
+
+export function getLocationPoints(password: string, limit: number): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getLocationPointsJson(password, limit.toInt()))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function clearLocationHistory(): boolean {
+  return SmsBackupNative.clearLocationHistory()
+}
+
+export function openBatteryOptimizationSettings(): void {
+  SmsBackupNative.openBatteryOptimizationSettings()
+}
+
+export function openAppSettings(): void {
+  SmsBackupNative.openAppSettings()
+}
+
+export function requestContactsPermission(): Promise<boolean> {
+  return requestAndroidPermissions(['android.permission.READ_CONTACTS'])
+}
+
+export function getContacts(password: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    UTSAndroid.getDispatcher('io').async((_data: any | null) => {
+      try {
+        resolve(SmsBackupNative.getContactsJson(password))
+      } catch (error) {
+        reject(error)
+      }
+    })
+  })
+}
+
+export function getDeviceSnapshot(password: string): string {
+  return SmsBackupNative.getDeviceSnapshotJson(password)
+}
+
 export function getBackupStatus(): string {
   return SmsBackupNative.getBackupStatusJson()
 }
@@ -132,5 +224,25 @@ export function testConnection(serverUrl: string): Promise<boolean> {
 
 export function clearQueue(): void {
   SmsBackupNative.clearQueue()
+}
+
+function requestAndroidPermissions(permissions: string[]): Promise<boolean> {
+  return new Promise<boolean>((resolve, _reject) => {
+    const activity = UTSAndroid.getUniActivity()
+    if (activity == null) {
+      resolve(false)
+      return
+    }
+    if (UTSAndroid.getSystemPermissionDenied(activity, permissions).isEmpty()) {
+      resolve(true)
+      return
+    }
+    UTSAndroid.requestSystemPermission(
+      activity,
+      permissions,
+      (allRight: boolean, _granted: string[]) => resolve(allRight),
+      (_doNotAskAgain: boolean, _granted: string[]) => resolve(false)
+    )
+  })
 }
 // #endif

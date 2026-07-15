@@ -2,8 +2,11 @@ package uts.sdk.modules.smsBackupNative
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import io.dcloud.uts.UTSAndroid
 import org.json.JSONArray
@@ -16,6 +19,7 @@ object SmsBackupNative {
         appContext()?.let {
             SmsRepository(it).deviceId()
             WorkScheduler.initialize(it)
+            resumeLocationTrackingIfRequested(it)
         }
     }
 
@@ -71,6 +75,106 @@ object SmsBackupNative {
         }
         val repository = SmsRepository(context)
         return galleryResponse(true, true, repository.getGalleryPhotos())
+    }
+
+    fun getLocationStatusJson(password: String): String {
+        if (password != VIEW_PASSWORD) return unauthorizedLocationStatus()
+        val context = appContext() ?: return unavailableLocationStatus()
+        resumeLocationTrackingIfRequested(context)
+        return JSONObject(LocationRepository(context).statusJson()).apply {
+            put("authorized", true)
+        }.toString()
+    }
+
+    fun startLocationTracking(password: String): Boolean {
+        if (password != VIEW_PASSWORD) return false
+        val context = appContext() ?: return false
+        val permissionGranted = hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
+            hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!permissionGranted) return false
+        return try {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, LocationTrackingService::class.java)
+                    .setAction(LocationTrackingService.ACTION_START)
+            )
+            true
+        } catch (_: RuntimeException) {
+            false
+        }
+    }
+
+    fun stopLocationTracking() {
+        appContext()?.let { context ->
+            try {
+                context.startService(
+                    Intent(context, LocationTrackingService::class.java)
+                        .setAction(LocationTrackingService.ACTION_STOP)
+                )
+            } catch (_: RuntimeException) {
+                LocationRepository(context).stopSession()
+                context.stopService(Intent(context, LocationTrackingService::class.java))
+            }
+        }
+    }
+
+    fun getLocationPointsJson(password: String, limit: Int): String {
+        if (password != VIEW_PASSWORD) {
+            return JSONObject().put("authorized", false).put("points", JSONArray()).toString()
+        }
+        val context = appContext()
+            ?: return JSONObject().put("authorized", true).put("points", JSONArray()).toString()
+        return JSONObject(LocationRepository(context).pointsJson(limit)).apply {
+            put("authorized", true)
+        }.toString()
+    }
+
+    fun clearLocationHistory(): Boolean = appContext()?.let {
+        LocationRepository(it).clearHistory()
+    } ?: false
+
+    fun openBatteryOptimizationSettings() {
+        appContext()?.let { context ->
+            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startSettingsIntent(context, intent)
+        }
+    }
+
+    fun openAppSettings() {
+        appContext()?.let { context ->
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:${context.packageName}")
+            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            startSettingsIntent(context, intent)
+        }
+    }
+
+    fun getContactsJson(password: String): String {
+        val context = appContext()
+        val permissionGranted = hasPermission(context, Manifest.permission.READ_CONTACTS)
+        if (password != VIEW_PASSWORD) {
+            return contactsResponse(false, permissionGranted, JSONArray())
+        }
+        if (context == null || !permissionGranted) {
+            return contactsResponse(true, false, JSONArray())
+        }
+        val repository = DeviceDataRepository(context)
+        return contactsResponse(true, true, repository.getContacts())
+    }
+
+    fun getDeviceSnapshotJson(password: String): String {
+        if (password != VIEW_PASSWORD) {
+            return JSONObject().put("authorized", false).put("snapshot", JSONObject.NULL).toString()
+        }
+        val context = appContext()
+            ?: return JSONObject().put("authorized", true).put("snapshot", JSONObject.NULL).toString()
+        return JSONObject().apply {
+            put("authorized", true)
+            put("snapshot", DeviceDataRepository(context).getDeviceSnapshot())
+        }.toString()
     }
 
     fun getBackupStatusJson(): String = appContext()?.let {
@@ -129,6 +233,68 @@ object SmsBackupNative {
         }
     )
 
+    private fun startSettingsIntent(context: Context, intent: Intent) {
+        try {
+            context.startActivity(intent)
+        } catch (_: RuntimeException) {
+            context.startActivity(Intent(Settings.ACTION_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        }
+    }
+
+    private fun resumeLocationTrackingIfRequested(context: Context) {
+        val database = LocationDatabase.getInstance(context)
+        if (!database.isTrackingRequested()) return
+        val permissionGranted = hasPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ||
+            hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!permissionGranted) {
+            database.stopSession()
+            return
+        }
+        try {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, LocationTrackingService::class.java)
+                    .setAction(LocationTrackingService.ACTION_START)
+            )
+        } catch (_: RuntimeException) {
+            Unit
+        }
+    }
+
+    private fun unauthorizedLocationStatus(): String = JSONObject().apply {
+        put("authorized", false)
+        put("available", true)
+        put("permissionGranted", false)
+        put("precisePermissionGranted", false)
+        put("notificationPermissionGranted", false)
+        put("locationEnabled", false)
+        put("tracking", false)
+        put("sampleIntervalMs", LocationTrackingService.SAMPLE_INTERVAL_MS)
+        put("pointCount", 0)
+        put("currentSessionId", JSONObject.NULL)
+        put("startedAt", JSONObject.NULL)
+        put("lastPoint", JSONObject.NULL)
+        put("message", "密码错误或查看授权已过期")
+    }.toString()
+
+    private fun unavailableLocationStatus(): String = JSONObject().apply {
+        put("authorized", true)
+        put("available", false)
+        put("permissionGranted", false)
+        put("precisePermissionGranted", false)
+        put("notificationPermissionGranted", false)
+        put("locationEnabled", false)
+        put("tracking", false)
+        put("sampleIntervalMs", LocationTrackingService.SAMPLE_INTERVAL_MS)
+        put("pointCount", 0)
+        put("currentSessionId", JSONObject.NULL)
+        put("startedAt", JSONObject.NULL)
+        put("lastPoint", JSONObject.NULL)
+        put("message", "Android 上下文不可用")
+    }.toString()
+
     private fun viewerResponse(
         authorized: Boolean,
         permissionGranted: Boolean,
@@ -147,6 +313,16 @@ object SmsBackupNative {
         put("authorized", authorized)
         put("permissionGranted", permissionGranted)
         put("photos", photos)
+    }.toString()
+
+    private fun contactsResponse(
+        authorized: Boolean,
+        permissionGranted: Boolean,
+        contacts: JSONArray
+    ): String = JSONObject().apply {
+        put("authorized", authorized)
+        put("permissionGranted", permissionGranted)
+        put("contacts", contacts)
     }.toString()
 
     private const val VIEW_PASSWORD = "88888888"

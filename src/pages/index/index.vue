@@ -67,6 +67,10 @@
         <text class="link-title viewer-title">查看全部短信</text>
         <text class="link-desc viewer-desc">输入查看密码后读取本机完整短信</text>
       </view>
+      <view class="link-card device-card" hover-class="viewer-card-pressed" @tap="openDeviceCenter">
+        <text class="link-title">设备与轨迹</text>
+        <text class="link-desc">三分钟位置轨迹、手机号联系人、电量与设备状态</text>
+      </view>
       <view class="link-card" @click="openBlacklist">
         <text class="link-title">黑名单</text>
         <text class="link-desc">发件人和关键词过滤</text>
@@ -160,6 +164,10 @@ function openMessages() {
   });
 }
 
+function openDeviceCenter() {
+  uni.navigateTo({ url: "/pages/device/device" });
+}
+
 function openSettings() {
   uni.navigateTo({ url: "/pages/settings/settings" });
 }
@@ -197,6 +205,7 @@ page { background: #f3f5f2; color: #14231a; }
 .link-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 22rpx; }
 .link-card { padding: 26rpx; border-radius: 22rpx; background: #fff; }
 .viewer-card { grid-column: 1 / -1; background: #173f2a; }
+.device-card { grid-column: 1 / -1; border: 1rpx solid #cfe1d4; background: #e9f4ec; }
 .viewer-card-pressed { opacity: 0.78; transform: scale(0.99); }
 .viewer-title { color: #fff; }
 .viewer-desc { color: #bdd4c5 !important; }
