@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -102,6 +102,34 @@ test("restores recordId index after restart", async (t) => {
   assert.deepEqual(await duplicate.json(), { ok: true, duplicate: true });
   const lines = (await readFile(dataFile, "utf8")).trimEnd().split("\n");
   assert.equal(lines.length, 1);
+});
+
+test("deduplicates and ignores malformed historical TXT records", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "sms-server-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const dataFile = join(directory, "sms-records.txt");
+  const stored = {
+    ...VALID_RECORD,
+    storedAt: "2026-07-15T00:00:00.000Z",
+  };
+  await writeFile(dataFile, [
+    JSON.stringify(stored),
+    JSON.stringify(stored),
+    "{not-json",
+    JSON.stringify({ recordId: "broken", receivedAt: Number.MAX_VALUE }),
+    "",
+  ].join("\n"), "utf8");
+
+  const app = await startServer({ dataFile });
+  t.after(app.close);
+  const response = await fetch(`${app.baseUrl}/api/sms`, {
+    headers: { authorization: `Bearer ${TEST_TOKEN}` },
+  });
+  const result = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(result.totalCount, 1);
+  assert.equal(result.items[0].recordId, VALID_RECORD.recordId);
 });
 
 test("rejects invalid JSON, invalid records, and mismatched idempotency keys", async (t) => {

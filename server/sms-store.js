@@ -1,6 +1,8 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
+import { isValidSmsRecord } from "./sms-record.js";
+
 export class TextSmsStore {
   constructor(filePath) {
     this.filePath = filePath;
@@ -13,17 +15,15 @@ export class TextSmsStore {
     await mkdir(dirname(this.filePath), { recursive: true });
     await appendFile(this.filePath, "", "utf8");
 
+    this.recordIds.clear();
+    this.records.length = 0;
+
     const content = await readFile(this.filePath, "utf8");
     for (const line of content.split(/\r?\n/u)) {
       if (!line.trim()) continue;
       try {
         const record = JSON.parse(line);
-        if (
-          record &&
-          typeof record === "object" &&
-          typeof record.recordId === "string" &&
-          record.recordId
-        ) {
+        if (isValidSmsRecord(record) && !this.recordIds.has(record.recordId)) {
           this.recordIds.add(record.recordId);
           this.records.push(record);
         }

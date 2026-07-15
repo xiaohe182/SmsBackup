@@ -4,17 +4,10 @@ import { dirname, join, resolve } from "node:path";
 
 import { TextSmsStore } from "./sms-store.js";
 import { formatSmsMarkdown } from "./markdown-export.js";
+import { isValidSmsRecord } from "./sms-record.js";
 
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 const DEFAULT_ACCESS_TOKEN = "88888888";
-const REQUIRED_STRING_FIELDS = [
-  "recordId",
-  "deviceId",
-  "deviceName",
-  "sourceId",
-  "sender",
-  "body",
-];
 
 class BodyTooLargeError extends Error {}
 
@@ -74,20 +67,6 @@ function readRequestBody(request, maxBodyBytes) {
     request.on("aborted", () => reject(new Error("request aborted")));
     request.on("error", reject);
   });
-}
-
-function isValidSmsRecord(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  if (!REQUIRED_STRING_FIELDS.every((field) => typeof value[field] === "string")) {
-    return false;
-  }
-  if (
-    !value.recordId ||
-    !Number.isSafeInteger(value.receivedAt) ||
-    value.receivedAt < 0
-  ) return false;
-  if (value.direction !== "inbox" && value.direction !== "sent") return false;
-  return value.simSubscriptionId === null || Number.isInteger(value.simSubscriptionId);
 }
 
 export async function createSmsServer({
