@@ -25,15 +25,39 @@ describe("password-protected SMS viewer page", () => {
     expect(home).toContain("无法打开短信页面");
   });
 
-  it("requires the fixed password before invoking the native list API", () => {
+  it("requires the fixed password before invoking bounded native viewer APIs", () => {
     const page = read("src/pages/messages/messages.vue");
 
     expect(page).toContain('type="password"');
     expect(page).toContain("isSmsViewerPasswordValid");
-    expect(page).toContain("smsBackupService.listAllMessages");
+    expect(page).toContain("smsBackupService.listConversationSummaries");
     expect(page.indexOf("isSmsViewerPasswordValid")).toBeLessThan(
-      page.indexOf("smsBackupService.listAllMessages"),
+      page.indexOf("smsBackupService.listConversationSummaries"),
     );
+    expect(page).not.toContain("smsBackupService.listAllMessages");
+    expect(page).not.toContain("smsBackupService.listGalleryPhotos");
+  });
+
+  it("shows consistent contact identity and bounded virtual media rendering", () => {
+    const page = read("src/pages/messages/messages.vue");
+
+    for (const value of [
+      "conversation.contact.avatarUri",
+      "conversation.contact.displayName",
+      "conversation.contact.phoneNumber",
+      "DEFAULT_CONTACT_AVATAR",
+      "calculateVirtualMediaRange",
+      "createMediaPageCache",
+      "smsBackupService.listMessagePage",
+      "smsBackupService.listGalleryPage",
+      '@scrolltolower="loadNextMessagePage"',
+      'lazy-load="true"',
+      "mediaGeneration",
+    ]) {
+      expect(page).toContain(value);
+    }
+    expect(page).not.toContain("conversation.address.slice");
+    expect(page).not.toContain("viewerData.value.photos.map");
   });
 
   it("keeps an active ten-minute session across page hiding and exposes conversation tabs", () => {

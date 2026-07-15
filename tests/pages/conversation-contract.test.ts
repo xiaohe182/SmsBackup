@@ -20,19 +20,29 @@ describe("SMS conversation page", () => {
     expect(messages).toContain("encodeURIComponent");
   });
 
-  it("uses the active viewer session for full chat messages and image previews", () => {
+  it("uses the active viewer session and bounded pages for complete chat details", () => {
     const conversation = read("src/pages/conversation/conversation.vue");
 
     for (const value of [
       "smsViewerSession",
-      "messagesForConversation",
+      "smsBackupService.listMessagePage",
       "remainingMs",
       "lockViewer",
       "uni.previewImage",
       "white-space: pre-wrap",
       "message.attachments",
+      "contact.avatarUri",
+      "contact.displayName",
+      "contact.phoneNumber",
+      "message.body",
+      "message.direction",
+      "message.status",
+      "message.simSubscriptionId",
+      '@scrolltoupper="loadOlderMessages"',
+      'lazy-load="true"',
     ]) {
       expect(conversation).toContain(value);
     }
+    expect(conversation).not.toContain("messagesForConversation");
   });
 });

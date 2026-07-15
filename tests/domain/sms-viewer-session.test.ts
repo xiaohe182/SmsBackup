@@ -105,4 +105,32 @@ describe("protected SMS viewer session", () => {
     expect(filterViewerMessages(messages, "inbox")).toHaveLength(2);
     expect(filterViewerMessages(messages, "sent")).toEqual([messages[1]]);
   });
+
+  it("keeps contact-aware conversation identity only inside the unlocked session", () => {
+    const session = createSmsViewerSession();
+    session.unlock("88888888");
+    session.replaceConversations([
+      {
+        key: "thread:7",
+        threadId: 7,
+        address: "13800138000",
+        contact: {
+          key: "contact:13800138000",
+          displayName: "家人备注",
+          phoneNumber: "13800138000",
+          phoneLabel: "手机",
+          avatarUri: "content://contacts/1/photo",
+          isResolved: true,
+        },
+        preview: "晚饭见",
+        latestAt: 100,
+        messageCount: 2,
+        unreadCount: 0,
+      },
+    ]);
+
+    expect(session.conversation("thread:7")?.contact.displayName).toBe("家人备注");
+    session.lock();
+    expect(session.conversation("thread:7")).toBeNull();
+  });
 });

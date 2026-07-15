@@ -35,6 +35,8 @@ export interface SmsViewerSession {
   lock(): void;
   replaceData(data: SmsViewerData): boolean;
   data(): SmsViewerData;
+  replaceConversations(conversations: ViewerConversation[]): boolean;
+  conversation(key: string): ViewerConversation | null;
 }
 
 function emptyViewerData(): SmsViewerData {
@@ -52,11 +54,13 @@ export function createSmsViewerSession(
   let expiresAt: number | null = null;
   let sessionPassword: string | null = null;
   let viewerData = emptyViewerData();
+  let conversations = new Map<string, ViewerConversation>();
 
   function lock(): void {
     expiresAt = null;
     sessionPassword = null;
     viewerData = emptyViewerData();
+    conversations = new Map();
   }
 
   function isActive(): boolean {
@@ -97,6 +101,18 @@ export function createSmsViewerSession(
     data() {
       if (!isActive()) return emptyViewerData();
       return viewerData;
+    },
+    replaceConversations(nextConversations) {
+      if (!isActive()) return false;
+      // 联系人备注和头像仅存在 10 分钟查看会话内，锁定时与密码一起从内存清除。
+      conversations = new Map(
+        nextConversations.map((conversation) => [conversation.key, conversation]),
+      );
+      return true;
+    },
+    conversation(key) {
+      if (!isActive()) return null;
+      return conversations.get(key) ?? null;
     },
   };
 }
