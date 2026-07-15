@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdir, open, rename, stat } from "node:fs/promises";
+import { mkdir, open, rename, rm, stat, truncate } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 
 import { JsonlEventStore } from "./jsonl-store.js";
@@ -126,11 +126,18 @@ export class MediaStore {
       const completed = this.completed.get(mediaId);
       if (completed) {
         if (completed.deviceId === deviceId && completed.size === rawItem.size) {
-          existing.push(mediaId);
+          // TXT 索引不能代表二进制文件一定仍存在；缺失或损坏时要求手机重传。
+          const storedBytes = await fileSize(this.absoluteRecordPath(completed));
+          if (storedBytes === completed.size) {
+            existing.push(mediaId);
+            continue;
+          }
+          this.completed.delete(mediaId);
+          await rm(this.absoluteRecordPath(completed), { force: true });
         } else {
           rejected.push({ mediaId, error: "media_id_conflict" });
+          continue;
         }
-        continue;
       }
 
       const item = { ...rawItem, commandId: String(command.id ?? "") };
@@ -141,10 +148,23 @@ export class MediaStore {
         existing.push(record.mediaId);
         continue;
       }
+      // 不完整的正式文件不能覆盖新的分块结果，先安全移除再恢复上传。
+      await rm(paths.finalPath, { force: true });
+      let partBytes = await fileSize(paths.partPath);
+      if (partBytes === item.size) {
+        await rename(paths.partPath, paths.finalPath);
+        const record = await this.finalizeExistingFile(item, paths.relativePath);
+        existing.push(record.mediaId);
+        continue;
+      }
+      if (partBytes > item.size) {
+        await truncate(paths.partPath, 0);
+        partBytes = 0;
+      }
       this.pending.set(mediaId, item);
       missing.push({
         mediaId,
-        offset: Math.min(await fileSize(paths.partPath), item.size),
+        offset: partBytes,
         size: item.size,
       });
     }

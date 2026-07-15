@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import test from "node:test";
 
@@ -128,6 +128,43 @@ test("a partial upload resumes and finalizes without buffering the whole video",
   assert.equal(completed.complete, true);
   assert.equal(await readFile(completed.path, "utf8"), "abcdef");
   await assert.rejects(stat(`${completed.path}.part`), /ENOENT/u);
+});
+
+test("manifest recovers a completed part and resets an oversized corrupt part", async (t) => {
+  const { store } = await createStore(t);
+  const completedPartItem = media({ mediaId: "7".repeat(64) });
+  const completedPaths = store.pathsFor(completedPartItem);
+  await mkdir(dirname(completedPaths.partPath), { recursive: true });
+  await writeFile(completedPaths.partPath, "abcdef", "utf8");
+
+  const recovered = await store.registerManifest({
+    command: COMMAND,
+    deviceId: "device-1",
+    items: [completedPartItem],
+  });
+  assert.deepEqual(recovered.existing, [completedPartItem.mediaId]);
+  assert.equal(await readFile(completedPaths.finalPath, "utf8"), "abcdef");
+
+  await rm(completedPaths.finalPath, { force: true });
+  const missingAgain = await store.registerManifest({
+    command: COMMAND,
+    deviceId: "device-1",
+    items: [completedPartItem],
+  });
+  assert.equal(missingAgain.missing[0].offset, 0);
+
+  const corruptItem = media({ mediaId: "8".repeat(64) });
+  const corruptPaths = store.pathsFor(corruptItem);
+  await mkdir(dirname(corruptPaths.partPath), { recursive: true });
+  await writeFile(corruptPaths.partPath, "too-large", "utf8");
+
+  const reset = await store.registerManifest({
+    command: COMMAND,
+    deviceId: "device-1",
+    items: [corruptItem],
+  });
+  assert.equal(reset.missing[0].offset, 0);
+  assert.equal((await stat(corruptPaths.partPath)).size, 0);
 });
 
 test("completed records deduplicate and rebuild from TXT after restart", async (t) => {
