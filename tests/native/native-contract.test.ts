@@ -11,15 +11,20 @@ function read(relativePath: string): string {
 }
 
 describe("Android native SMS plugin contract", () => {
-  it("declares required SMS, contacts, network, and image-reading permissions", () => {
+  it("declares SMS, contacts, network, image, video, and media-transfer permissions", () => {
     const manifest = read("AndroidManifest.xml");
     expect(manifest).toContain("android.permission.READ_SMS");
     expect(manifest).toContain("android.permission.RECEIVE_SMS");
     expect(manifest).toContain("android.permission.INTERNET");
     expect(manifest).toContain("android.permission.ACCESS_NETWORK_STATE");
     expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
+    expect(manifest).toContain("android.permission.READ_MEDIA_VIDEO");
+    expect(manifest).toContain("android.permission.READ_MEDIA_VISUAL_USER_SELECTED");
     expect(manifest).toContain("android.permission.READ_EXTERNAL_STORAGE");
     expect(manifest).toContain("android.permission.READ_CONTACTS");
+    expect(manifest).toContain("android.permission.FOREGROUND_SERVICE");
+    expect(manifest).toContain("android.permission.FOREGROUND_SERVICE_DATA_SYNC");
+    expect(manifest).toContain("android.permission.POST_NOTIFICATIONS");
   });
 
   it("supports Android 8 and declares compatible AndroidX dependencies", () => {
@@ -172,6 +177,8 @@ describe("Android native SMS plugin contract", () => {
     expect(repository).toContain("MediaStore.Images.Media.EXTERNAL_CONTENT_URI");
     expect(uts).toContain("Build.VERSION.SDK_INT >= 33");
     expect(uts).toContain("android.permission.READ_MEDIA_IMAGES");
+    expect(uts).toContain("android.permission.READ_MEDIA_VIDEO");
+    expect(uts).toContain("android.permission.READ_MEDIA_VISUAL_USER_SELECTED");
     expect(uts).toContain("android.permission.READ_EXTERNAL_STORAGE");
   });
 });

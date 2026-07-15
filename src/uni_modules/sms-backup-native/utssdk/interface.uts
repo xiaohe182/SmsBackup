@@ -93,6 +93,13 @@ export type NativeBackupStatus = {
   permissionGranted: boolean,
   pendingCount: number,
   uploadedCount: number,
+  pendingImageCount: number,
+  uploadedImageCount: number,
+  pendingVideoCount: number,
+  uploadedVideoCount: number,
+  mediaBytesUploaded: number,
+  lastMediaSyncAt: number | null,
+  lastMediaError: string | null,
   lastSyncAt: number | null,
   message: string
 }
