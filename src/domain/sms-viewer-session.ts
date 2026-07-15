@@ -1,41 +1,23 @@
 export const SMS_VIEWER_SESSION_DURATION_MS = 10 * 60 * 1000;
 
-export type ViewerMessageDirection =
-  | "inbox"
-  | "sent"
-  | "draft"
-  | "outbox"
-  | "failed"
-  | "queued"
-  | "unknown";
+import type {
+  ViewerContact,
+  ViewerConversation,
+  ViewerMessage,
+  ViewerMessageDirection,
+  ViewerMessageFilter,
+  ViewerPhoto,
+} from "@/domain/sms-viewer-pagination";
 
-export interface ViewerAttachment {
-  id: string;
-  uri: string;
-  mimeType: string;
-}
-
-export interface ViewerMessage {
-  id: string;
-  threadId: number | null;
-  address: string;
-  body: string;
-  timestamp: number;
-  direction: ViewerMessageDirection;
-  kind: "sms" | "mms";
-  attachments: ViewerAttachment[];
-  read?: boolean;
-}
-
-export interface ViewerPhoto {
-  id: string;
-  uri: string;
-  albumId: string;
-  albumName: string;
-  displayName?: string;
-  takenAt?: number;
-  mimeType?: string;
-}
+export type {
+  ViewerAttachment,
+  ViewerContact,
+  ViewerConversation,
+  ViewerMessage,
+  ViewerMessageDirection,
+  ViewerMessageFilter,
+  ViewerPhoto,
+} from "@/domain/sms-viewer-pagination";
 
 export interface SmsViewerData {
   messages: ViewerMessage[];
@@ -43,17 +25,6 @@ export interface SmsViewerData {
   smsPermissionGranted: boolean;
   mediaPermissionGranted: boolean;
 }
-
-export interface ViewerConversation {
-  key: string;
-  address: string;
-  preview: string;
-  latestAt: number;
-  messageCount: number;
-  unreadCount: number;
-}
-
-export type ViewerMessageFilter = "all" | "inbox" | "sent";
 
 export interface SmsViewerSession {
   unlock(password: string): void;
@@ -142,10 +113,20 @@ export function buildConversations(messages: ViewerMessage[]): ViewerConversatio
     const key = conversationKey(message);
     const existing = conversations.get(key);
     const address = message.address.trim() || "未知号码";
+    const contact: ViewerContact = {
+      key: `number:${address}`,
+      displayName: null,
+      phoneNumber: address,
+      phoneLabel: null,
+      avatarUri: null,
+      isResolved: false,
+    };
     if (!existing) {
       conversations.set(key, {
         key,
+        threadId: message.threadId,
         address,
+        contact,
         preview: message.body || (message.attachments.length ? "[图片]" : ""),
         latestAt: message.timestamp,
         messageCount: 1,

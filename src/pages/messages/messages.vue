@@ -289,28 +289,42 @@ function ensureActiveSession(): boolean {
 function toViewerSmsMessages(messages: SmsMessage[]): ViewerMessage[] {
   return messages.map((message) => ({
     id: `sms:${message.sourceId}`,
+    sourceId: message.sourceId,
     threadId: message.threadId,
     address: message.address,
     body: message.body,
-    timestamp: message.sentAt || message.receivedAt,
+    timestamp: message.sentAt ?? message.receivedAt,
+    receivedAt: message.receivedAt,
+    sentAt: message.sentAt,
     direction: message.direction,
     kind: "sms",
     attachments: [],
     read: message.read,
+    seen: message.seen,
+    status: message.status,
+    serviceCenter: message.serviceCenter,
+    simSubscriptionId: message.simSubscriptionId,
   }));
 }
 
 function toViewerMmsMessages(messages: MmsMessage[]): ViewerMessage[] {
   return messages.map((message) => ({
     id: `mms:${message.sourceId}`,
+    sourceId: message.sourceId,
     threadId: message.threadId,
     address: message.address,
     body: message.body,
-    timestamp: message.sentAt || message.receivedAt,
+    timestamp: message.sentAt ?? message.receivedAt,
+    receivedAt: message.receivedAt,
+    sentAt: message.sentAt,
     direction: message.direction,
     kind: "mms",
     attachments: message.attachments,
     read: message.read,
+    seen: message.seen,
+    status: null,
+    serviceCenter: null,
+    simSubscriptionId: null,
   }));
 }
 
