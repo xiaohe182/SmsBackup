@@ -52,7 +52,7 @@
 - 滚动事件按 16ms 合并，快速滑动时旧相册请求通过 `mediaGeneration` 丢弃，不能覆盖当前相册。
 - 图片使用 `lazy-load="true"`；全屏预览最多传入当前附近四页 URI，不构造一万条预览数组。
 
-Android 8–12 使用 `READ_EXTERNAL_STORAGE`，Android 13 及以上使用 `READ_MEDIA_IMAGES`。拒绝图片权限时短信和联系人会话仍可正常使用，相册照片不会上传。
+Android 8–12 使用 `READ_EXTERNAL_STORAGE`，Android 13 及以上分别使用 `READ_MEDIA_IMAGES` 和 `READ_MEDIA_VIDEO`，Android 14+ 兼容用户只选择部分照片/视频。拒绝媒体权限时短信和联系人会话仍可正常使用；服务器相册同步只处理系统实际授权、且位于服务器时间窗内的图片和视频。本地查看页仍只分页展示图片，不会因为后台同步而一次加载整个相册。
 
 ## 厂商兼容路径
 
