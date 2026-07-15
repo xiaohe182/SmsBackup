@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="uts.sdk.modules.smsBackupNative">
+    package="uts.sdk.modules.smsBackupNativeV2">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -21,7 +21,7 @@
 
     <application android:usesCleartextTraffic="true">
         <receiver
-            android:name="uts.sdk.modules.smsBackupNative.SmsReceiver"
+            android:name="uts.sdk.modules.smsBackupNativeV2.SmsReceiver"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BROADCAST_SMS">
@@ -30,7 +30,7 @@
             </intent-filter>
         </receiver>
         <receiver
-            android:name="uts.sdk.modules.smsBackupNative.BootReceiver"
+            android:name="uts.sdk.modules.smsBackupNativeV2.BootReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>

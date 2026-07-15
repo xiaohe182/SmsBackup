@@ -405,6 +405,12 @@ function viewerPassword(): string | null {
   return smsViewerSession.password();
 }
 
+function nativeErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : fallback;
+}
+
 async function loadConversations(): Promise<void> {
   const password = viewerPassword();
   if (!password) return;
@@ -562,8 +568,10 @@ async function ensureMediaPages(pages: number[]): Promise<void> {
       mediaPageCache.set(page, result.photos);
       mediaCacheVersion.value += 1;
     }));
-  } catch {
-    if (generation === mediaGeneration) errorText.value = "当前图片页加载失败，请稍后重试";
+  } catch (error) {
+    if (generation === mediaGeneration) {
+      errorText.value = nativeErrorMessage(error, "当前图片页加载失败，请稍后重试");
+    }
   } finally {
     pendingPages.forEach((page) => loadingMediaPages.delete(page));
     if (generation === mediaGeneration) mediaLoading.value = loadingMediaPages.size > 0;
@@ -596,8 +604,8 @@ async function unlockAndLoad() {
       .requestContactsPermission()
       .catch(() => false);
     await Promise.all([loadConversations(), loadMessagePage(true)]);
-  } catch {
-    errorText.value = "读取短信失败，请检查权限后重试";
+  } catch (error) {
+    errorText.value = nativeErrorMessage(error, "读取短信失败，请检查权限后重试");
   } finally {
     busy.value = false;
   }
@@ -610,8 +618,8 @@ async function refreshViewer() {
   try {
     if (activeTab.value === "media") await loadAlbums();
     else await Promise.all([loadConversations(), loadMessagePage(true)]);
-  } catch {
-    errorText.value = "刷新失败，请稍后重试";
+  } catch (error) {
+    errorText.value = nativeErrorMessage(error, "刷新失败，请稍后重试");
   } finally {
     busy.value = false;
   }
@@ -627,6 +635,8 @@ async function requestSmsPermissions() {
       return;
     }
     await Promise.all([loadConversations(), loadMessagePage(true)]);
+  } catch (error) {
+    errorText.value = nativeErrorMessage(error, "短信授权或读取失败，请稍后重试");
   } finally {
     busy.value = false;
   }
@@ -649,6 +659,8 @@ async function requestMediaPermissions() {
       return;
     }
     await loadAlbums();
+  } catch (error) {
+    errorText.value = nativeErrorMessage(error, "相册授权或读取失败，请稍后重试");
   } finally {
     busy.value = false;
   }

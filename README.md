@@ -30,7 +30,7 @@ src/pages/                         uni-app 页面
 src/domain/                        可测试的分页、会话和上传契约
 src/stores/                        应用设置本地状态
 src/services/                      页面到 UTS 插件的适配层
-src/uni_modules/sms-backup-native/ Android UTS/Kotlin 原生插件
+src/uni_modules/sms-backup-native-v2/ Android UTS/Kotlin 原生插件
 server/                            可直接运行的零依赖 Node.js 服务端
 tests/                             TypeScript 与原生契约测试
 docs/android-device-test-checklist.md  真机验收步骤

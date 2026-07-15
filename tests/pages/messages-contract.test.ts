@@ -31,6 +31,7 @@ describe("password-protected SMS viewer page", () => {
     expect(page).toContain('type="password"');
     expect(page).toContain("isSmsViewerPasswordValid");
     expect(page).toContain("smsBackupService.listConversationSummaries");
+    expect(page).toContain("nativeErrorMessage");
     expect(page.indexOf("isSmsViewerPasswordValid")).toBeLessThan(
       page.indexOf("smsBackupService.listConversationSummaries"),
     );

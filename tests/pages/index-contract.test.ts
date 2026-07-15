@@ -18,6 +18,8 @@ describe("automatic SMS collection home page", () => {
     expect(page).toContain("相册时间范围由服务器动态控制");
     expect(page).toContain("await smsBackupService.requestMediaPermissions()");
     expect(page).toContain("await smsBackupService.syncNow()");
+    expect(page).toContain("同步启动失败，请稍后重试");
+    expect(page).toContain("catch (error)");
     expect(page).not.toContain("await smsBackupService.scanExistingMessages()");
   });
 

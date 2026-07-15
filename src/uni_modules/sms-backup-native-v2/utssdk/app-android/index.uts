@@ -1,4 +1,4 @@
-import { SmsBackupNative } from 'uts.sdk.modules.smsBackupNative'
+import { SmsBackupNative } from 'uts.sdk.modules.smsBackupNativeV2'
 import { UTSAndroid } from 'io.dcloud.uts'
 import { Build } from 'android.os'
 

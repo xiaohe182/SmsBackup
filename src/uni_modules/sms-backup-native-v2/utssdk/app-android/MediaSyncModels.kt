@@ -1,4 +1,4 @@
-package uts.sdk.modules.smsBackupNative
+package uts.sdk.modules.smsBackupNativeV2
 
 import org.json.JSONArray
 import org.json.JSONObject

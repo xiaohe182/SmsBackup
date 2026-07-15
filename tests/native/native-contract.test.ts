@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const androidRoot = resolve(
-  "src/uni_modules/sms-backup-native/utssdk/app-android",
+  "src/uni_modules/sms-backup-native-v2/utssdk/app-android",
 );
 
 function read(relativePath: string): string {

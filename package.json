@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "test": "vitest --config vitest.config.mts",
+    "prebuild:app-plus": "node scripts/prepare-native-build.mjs",
     "build:app-plus": "uni build -p app-plus",
     "type-check": "vue-tsc --noEmit"
   },

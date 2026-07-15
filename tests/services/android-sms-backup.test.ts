@@ -113,6 +113,29 @@ function createNative(overrides: Partial<NativeSmsModule> = {}): NativeSmsModule
 }
 
 describe("Android SMS backup service", () => {
+  it("rejects a native permission call that never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const service = createAndroidSmsBackupService(
+        createNative({
+          requestPermissions: vi.fn(() => new Promise<boolean>(() => undefined)),
+        }),
+        { nativeCallTimeoutMs: 100 },
+      );
+
+      const outcome = service.requestPermissions().then(
+        () => "resolved",
+        (error: Error) => error.message,
+      );
+      await vi.advanceTimersByTimeAsync(100);
+
+      await expect(Promise.race([outcome, Promise.resolve("still pending")]))
+        .resolves.toBe("短信权限请求超时，请重新打开应用后重试");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("parses native status and forwards asynchronous operations", async () => {
     const native = createNative();
     const service = createAndroidSmsBackupService(native);

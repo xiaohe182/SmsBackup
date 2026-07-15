@@ -1,7 +1,7 @@
 {
-  "id": "sms-backup-native",
-  "displayName": "SmsBackup Android Native",
-  "version": "1.0.0",
+  "id": "sms-backup-native-v2",
+  "displayName": "SmsBackup Android Native V2",
+  "version": "2.0.0",
   "description": "Android SMS permission, queue and background synchronization bridge",
   "keywords": ["sms", "android", "backup"],
   "uni_modules": {}

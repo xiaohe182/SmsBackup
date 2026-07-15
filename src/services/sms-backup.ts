@@ -1,5 +1,5 @@
 import type { AppSettings } from "@/stores/settings";
-import * as nativeSmsBackup from "@/uni_modules/sms-backup-native";
+import * as nativeSmsBackup from "@/uni_modules/sms-backup-native-v2";
 import type {
   MessageCursor,
   ViewerAlbum,
@@ -176,6 +176,45 @@ export interface NativeSmsModule {
   syncNow(): void;
   testConnection(serverUrl: string): Promise<boolean>;
   clearQueue(): void;
+}
+
+export interface AndroidSmsBackupServiceOptions {
+  nativeCallTimeoutMs?: number;
+}
+
+const DEFAULT_NATIVE_CALL_TIMEOUT_MS = 20_000;
+
+function withNativeTimeout<T>(
+  label: string,
+  timeoutMs: number,
+  operation: () => T | Promise<T>,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`${label}超时，请重新打开应用后重试`));
+    }, timeoutMs);
+
+    // 先进入微任务再调用原生桥接，可同时捕获“旧 APK 缺少方法”的同步异常。
+    Promise.resolve()
+      .then(operation)
+      .then(
+        (value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(error);
+        },
+      );
+  });
 }
 
 const UNAVAILABLE_STATUS: SmsBackupStatus = {
@@ -639,22 +678,47 @@ function parseStatus(raw: string): SmsBackupStatus {
 
 export function createAndroidSmsBackupService(
   native: NativeSmsModule,
+  options: AndroidSmsBackupServiceOptions = {},
 ): SmsBackupService {
+  const configuredTimeout = options.nativeCallTimeoutMs;
+  const nativeCallTimeoutMs = typeof configuredTimeout === "number" &&
+    Number.isFinite(configuredTimeout)
+    ? Math.max(1, Math.floor(configuredTimeout))
+    : DEFAULT_NATIVE_CALL_TIMEOUT_MS;
+  const callNative = <T>(label: string, operation: () => T | Promise<T>) =>
+    withNativeTimeout(label, nativeCallTimeoutMs, operation);
+
   return {
-    initialize: async () => native.initialize(),
+    initialize: async () => callNative("原生服务初始化", () => native.initialize()),
     getStatus: async () => parseStatus(native.getBackupStatus()),
-    requestPermissions: async () => native.requestPermissions(),
-    requestMediaPermissions: async () => native.requestMediaPermissions(),
-    requestContactsPermission: async () => native.requestContactsPermission(),
-    scanExistingMessages: async () => native.scanExistingMessages(),
+    requestPermissions: async () =>
+      callNative("短信权限请求", () => native.requestPermissions()),
+    requestMediaPermissions: async () =>
+      callNative("相册权限请求", () => native.requestMediaPermissions()),
+    requestContactsPermission: async () =>
+      callNative("联系人权限请求", () => native.requestContactsPermission()),
+    scanExistingMessages: async () =>
+      callNative("短信扫描", () => native.scanExistingMessages()),
     listAllMessages: async (password) =>
-      parseMessageList(await native.getAllMessages(password)),
+      parseMessageList(await callNative(
+        "短信读取",
+        () => native.getAllMessages(password),
+      )),
     listMmsMessages: async (password) =>
-      parseMmsMessageList(await native.getAllMmsMessages(password)),
+      parseMmsMessageList(await callNative(
+        "彩信读取",
+        () => native.getAllMmsMessages(password),
+      )),
     listGalleryPhotos: async (password) =>
-      parseGalleryPhotoList(await native.getGalleryPhotos(password)),
+      parseGalleryPhotoList(await callNative(
+        "相册读取",
+        () => native.getGalleryPhotos(password),
+      )),
     listConversationSummaries: async (password) =>
-      parseConversationSummaries(await native.getConversationSummaries(password)),
+      parseConversationSummaries(await callNative(
+        "短信会话读取",
+        () => native.getConversationSummaries(password),
+      )),
     listMessagePage: async (
       password,
       filter,
@@ -665,36 +729,49 @@ export function createAndroidSmsBackupService(
     ) => {
       const limit = clampPageSize(requestedLimit, 40, MAX_MESSAGE_PAGE_SIZE);
       return parseViewerMessagePage(
-        await native.getMessagePage(
-          password,
-          filter,
-          threadId,
-          address,
-          cursor === null ? null : JSON.stringify(cursor),
-          limit,
+        await callNative(
+          "短信分页读取",
+          () => native.getMessagePage(
+            password,
+            filter,
+            threadId,
+            address,
+            cursor === null ? null : JSON.stringify(cursor),
+            limit,
+          ),
         ),
         limit,
       );
     },
     listGalleryAlbums: async (password) =>
-      parseGalleryAlbums(await native.getGalleryAlbums(password)),
+      parseGalleryAlbums(await callNative(
+        "相册列表读取",
+        () => native.getGalleryAlbums(password),
+      )),
     listGalleryPage: async (password, albumId, requestedOffset, requestedLimit) => {
       const offset = Number.isFinite(requestedOffset)
         ? Math.max(0, Math.floor(requestedOffset))
         : 0;
       const limit = clampPageSize(requestedLimit, 60, MAX_GALLERY_PAGE_SIZE);
       return parseViewerPhotoPage(
-        await native.getGalleryPage(password, albumId, offset, limit),
+        await callNative(
+          "相册分页读取",
+          () => native.getGalleryPage(password, albumId, offset, limit),
+        ),
         albumId,
         offset,
         limit,
       );
     },
-    syncNow: async () => native.syncNow(),
-    testConnection: async (serverUrl) => native.testConnection(serverUrl),
+    syncNow: async () => callNative("启动同步", () => native.syncNow()),
+    testConnection: async (serverUrl) =>
+      callNative("服务器连接测试", () => native.testConnection(serverUrl)),
     saveSettings: async (settings) =>
-      native.saveNativeSettings(JSON.stringify(settings)),
-    clearQueue: async () => native.clearQueue(),
+      callNative(
+        "保存原生设置",
+        () => native.saveNativeSettings(JSON.stringify(settings)),
+      ),
+    clearQueue: async () => callNative("清理队列", () => native.clearQueue()),
   };
 }
 

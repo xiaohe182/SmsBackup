@@ -163,6 +163,11 @@ async function syncAll() {
       duration: 2600,
     });
     await refreshStatus();
+  } catch (error) {
+    const message = error instanceof Error && error.message.trim()
+      ? error.message
+      : "同步启动失败，请稍后重试";
+    uni.showToast({ title: message, icon: "none", duration: 3000 });
   } finally {
     busy.value = false;
   }
